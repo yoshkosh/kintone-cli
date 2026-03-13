@@ -220,9 +220,13 @@ ktc records get --app 1 --page-all > records.jsonl
 | 設定変更系 | `preview app form-fields add` / `update` / `delete` |
 | ファイル系（multipart） | `file` |
 
-### Phase 2: 全API実装
+### Phase 2: `--page-all` / NDJSONストリーム出力
 
-Phase 1の設計検証後、残りの全APIを実装する。
+`records get` に `--page-all` オプションを追加。cursor APIを使用し、全件をNDJSON形式でストリーム出力する。ストリーム出力という新しいパターンの設計検証を行う。
+
+### Phase 3: 全API実装
+
+Phase 1〜2の設計検証後、残りの全APIを実装する。
 
 ## SKILL.md
 
