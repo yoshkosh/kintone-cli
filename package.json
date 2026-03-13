@@ -1,0 +1,27 @@
+{
+  "name": "kintone-cli",
+  "version": "0.1.0",
+  "description": "kintone REST API CLI tool",
+  "type": "module",
+  "bin": {
+    "kintone-cli": "./dist/index.js",
+    "ktc": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "kintone",
+    "cli"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^14.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.9.3"
+  }
+}
