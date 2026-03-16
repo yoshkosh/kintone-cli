@@ -17,6 +17,68 @@ const getGlobalOptions = (cmd: Command): GlobalOptions => {
 const guestSpaceId = (global: GlobalOptions): number | undefined =>
   global.guestSpaceId ? Number(global.guestSpaceId) : undefined;
 
+type CursorOptions = {
+  app: number;
+  query?: string;
+  fields?: string[];
+  authType?: string;
+  guestSpaceId?: number;
+};
+
+const fetchAllWithCursor = async (opts: CursorOptions): Promise<void> => {
+  // 1. POST /k/v1/records/cursor.json — カーソル作成
+  const cursorBody: Record<string, unknown> = { app: opts.app, size: 500 };
+  if (opts.query) cursorBody.query = opts.query;
+  if (opts.fields) cursorBody.fields = opts.fields;
+
+  const cursorResult = (await kintoneRequest({
+    method: "POST",
+    path: "/k/v1/records/cursor.json",
+    body: cursorBody,
+    authType: opts.authType,
+    guestSpaceId: opts.guestSpaceId,
+  })) as { id: string; totalCount: number };
+
+  const cursorId = cursorResult.id;
+
+  try {
+    // 2. GET /k/v1/records/cursor.json — ページごとに取得してNDJSON出力
+    let hasNext = true;
+    while (hasNext) {
+      const page = (await kintoneRequest({
+        method: "GET",
+        path: "/k/v1/records/cursor.json",
+        params: { id: cursorId },
+        authType: opts.authType,
+        guestSpaceId: opts.guestSpaceId,
+      })) as { records: unknown[]; next: boolean };
+
+      for (const record of page.records) {
+        const ok = process.stdout.write(JSON.stringify(record) + "\n");
+        // バックプレッシャー対応: パイプ先が詰まったら待つ
+        if (!ok) {
+          await new Promise<void>((resolve) =>
+            process.stdout.once("drain", resolve),
+          );
+        }
+      }
+
+      hasNext = page.next;
+    }
+  } finally {
+    // 3. DELETE /k/v1/records/cursor.json — カーソル削除（エラー時も必ず実行）
+    await kintoneRequest({
+      method: "DELETE",
+      path: "/k/v1/records/cursor.json",
+      params: { id: cursorId },
+      authType: opts.authType,
+      guestSpaceId: opts.guestSpaceId,
+    }).catch(() => {
+      // カーソル削除の失敗は無視（全件取得完了後は自動削除されるため）
+    });
+  }
+};
+
 export const registerRecordCommands = (program: Command): void => {
   program
     .option(
@@ -115,6 +177,7 @@ export const registerRecordCommands = (program: Command): void => {
     .description("Records operations (/k/v1/records)");
 
   // GET /k/v1/records.json — クエリパラメータ: app(必須), query, fields[], totalCount
+  // --page-all: cursor APIで全件取得し、NDJSON形式でストリーム出力
   records
     .command("get")
     .description("Get multiple records")
@@ -122,8 +185,22 @@ export const registerRecordCommands = (program: Command): void => {
     .option("--query <query>", "Query string")
     .option("--fields <fields>", "Comma-separated field codes")
     .option("--total-count", "Include total count in response")
+    .option("--page-all", "Fetch all records using cursor API (NDJSON output)")
     .action(async (opts, cmd) => {
       const global = getGlobalOptions(cmd);
+      const gSpaceIdValue = guestSpaceId(global);
+
+      if (opts.pageAll) {
+        await fetchAllWithCursor({
+          app: Number(opts.app),
+          query: opts.query,
+          fields: opts.fields?.split(","),
+          authType: global.authType,
+          guestSpaceId: gSpaceIdValue,
+        });
+        return;
+      }
+
       const params: Record<string, unknown> = { app: opts.app };
       if (opts.query) params.query = opts.query;
       if (opts.fields) params.fields = opts.fields.split(",");
@@ -134,7 +211,7 @@ export const registerRecordCommands = (program: Command): void => {
         path: "/k/v1/records.json",
         params,
         authType: global.authType,
-        guestSpaceId: guestSpaceId(global),
+        guestSpaceId: gSpaceIdValue,
       });
       process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
     });

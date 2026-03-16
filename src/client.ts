@@ -67,8 +67,9 @@ export const kintoneRequest = async (
   const responseBody = await response.text();
 
   if (!response.ok) {
-    process.stderr.write(responseBody + "\n");
-    process.exit(1);
+    const error = new Error(responseBody);
+    error.name = "KintoneAPIError";
+    throw error;
   }
 
   if (!responseBody) {

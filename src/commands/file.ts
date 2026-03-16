@@ -58,8 +58,9 @@ export const registerFileCommands = (program: Command): void => {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        process.stderr.write(errorBody + "\n");
-        process.exit(1);
+        const error = new Error(errorBody);
+        error.name = "KintoneAPIError";
+        throw error;
       }
 
       const buffer = Buffer.from(await response.arrayBuffer());
@@ -107,8 +108,9 @@ export const registerFileCommands = (program: Command): void => {
       const responseBody = await response.text();
 
       if (!response.ok) {
-        process.stderr.write(responseBody + "\n");
-        process.exit(1);
+        const error = new Error(responseBody);
+        error.name = "KintoneAPIError";
+        throw error;
       }
 
       process.stdout.write(
