@@ -31,13 +31,15 @@ const fetchAllWithCursor = async (opts: CursorOptions): Promise<void> => {
   if (opts.query) cursorBody.query = opts.query;
   if (opts.fields) cursorBody.fields = opts.fields;
 
-  const cursorResult = (await kintoneRequest({
-    method: "POST",
-    path: "/k/v1/records/cursor.json",
-    body: cursorBody,
-    authType: opts.authType,
-    guestSpaceId: opts.guestSpaceId,
-  })) as { id: string; totalCount: number };
+  const cursorResult = await kintoneRequest<{ id: string; totalCount: number }>(
+    {
+      method: "POST",
+      path: "/k/v1/records/cursor.json",
+      body: cursorBody,
+      authType: opts.authType,
+      guestSpaceId: opts.guestSpaceId,
+    },
+  );
 
   const cursorId = cursorResult.id;
 
@@ -45,13 +47,13 @@ const fetchAllWithCursor = async (opts: CursorOptions): Promise<void> => {
     // 2. GET /k/v1/records/cursor.json — ページごとに取得してNDJSON出力
     let hasNext = true;
     while (hasNext) {
-      const page = (await kintoneRequest({
+      const page = await kintoneRequest<{ records: unknown[]; next: boolean }>({
         method: "GET",
         path: "/k/v1/records/cursor.json",
         params: { id: cursorId },
         authType: opts.authType,
         guestSpaceId: opts.guestSpaceId,
-      })) as { records: unknown[]; next: boolean };
+      });
 
       for (const record of page.records) {
         const ok = process.stdout.write(JSON.stringify(record) + "\n");

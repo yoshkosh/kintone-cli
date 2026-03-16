@@ -37,9 +37,9 @@ const appendQueryParams = (url: URL, params: Record<string, unknown>): void => {
   }
 };
 
-export const kintoneRequest = async (
+export const kintoneRequest = async <T = unknown>(
   options: RequestOptions,
-): Promise<unknown> => {
+): Promise<T> => {
   const baseUrl = getBaseUrl();
   const auth = resolveAuth(options.authType);
   const headers: Record<string, string> = {
@@ -73,8 +73,8 @@ export const kintoneRequest = async (
   }
 
   if (!responseBody) {
-    return {};
+    return {} as T;
   }
 
-  return JSON.parse(responseBody);
+  return JSON.parse(responseBody) as T;
 };
