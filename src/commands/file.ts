@@ -2,41 +2,15 @@ import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { Command } from "commander";
 import { resolveAuth, buildAuthHeaders } from "../auth.js";
-
-type GlobalOptions = {
-  authType?: string;
-  guestSpaceId?: string;
-};
-
-const getGlobalOptions = (cmd: Command): GlobalOptions => {
-  const root = cmd.optsWithGlobals();
-  return {
-    authType: root.authType,
-    guestSpaceId: root.guestSpaceId,
-  };
-};
-
-const getBaseUrl = (): string => {
-  const url = process.env.KINTONE_BASE_URL;
-  if (!url) {
-    throw new Error("KINTONE_BASE_URL is not set.");
-  }
-  return url.replace(/\/$/, "");
-};
-
-const buildPath = (path: string, guestSpaceId?: number): string => {
-  if (guestSpaceId) {
-    return path.replace("/k/v1/", `/k/guest/${guestSpaceId}/v1/`);
-  }
-  return path;
-};
+import { getBaseUrl, buildPath } from "../client.js";
+import { getGlobalOptions, toGuestSpaceId } from "./shared.js";
 
 export const registerFileCommands = (program: Command): void => {
   const file = program
     .command("file")
     .description("File operations (/k/v1/file)");
 
-  // GET /k/v1/file.json — クエリパラメータ: fileKey(必須) — レスポンスはバイナリ
+  // GET /k/v1/file.json — バイナリレスポンス
   file
     .command("get")
     .description("Download a file")
@@ -44,9 +18,7 @@ export const registerFileCommands = (program: Command): void => {
     .option("--output <path>", "Output file path (default: stdout)")
     .action(async (opts, cmd) => {
       const global = getGlobalOptions(cmd);
-      const gSpaceId = global.guestSpaceId
-        ? Number(global.guestSpaceId)
-        : undefined;
+      const gSpaceId = toGuestSpaceId(global);
       const baseUrl = getBaseUrl();
       const auth = resolveAuth(global.authType);
       const headers = buildAuthHeaders(auth);
@@ -84,9 +56,7 @@ export const registerFileCommands = (program: Command): void => {
     .requiredOption("--file <path>", "File path to upload")
     .action(async (opts, cmd) => {
       const global = getGlobalOptions(cmd);
-      const gSpaceId = global.guestSpaceId
-        ? Number(global.guestSpaceId)
-        : undefined;
+      const gSpaceId = toGuestSpaceId(global);
       const baseUrl = getBaseUrl();
       const auth = resolveAuth(global.authType);
       const headers = buildAuthHeaders(auth);

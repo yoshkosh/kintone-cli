@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-// パイプが閉じたときに静かに終了する
 process.stdout.on("error", (err: NodeJS.ErrnoException) => {
   if (err.code === "EPIPE") process.exit(0);
   throw err;
@@ -10,12 +9,28 @@ import { program } from "commander";
 import { registerRecordCommands } from "./commands/record.js";
 import { registerPreviewCommands } from "./commands/preview.js";
 import { registerFileCommands } from "./commands/file.js";
+import { registerAppCommands } from "./commands/app.js";
+import { registerAclCommands } from "./commands/acl.js";
 
-program.name("ktc").description("kintone REST API CLI").version("0.1.0");
+program
+  .name("ktc")
+  .description("kintone REST API CLI")
+  .version("0.1.0")
+  .option(
+    "--auth-type <type>",
+    "Authentication type: api-token, password, oauth",
+  )
+  .option("--guest-space-id <id>", "Guest space ID");
 
-registerRecordCommands(program);
-registerPreviewCommands(program);
+const preview = program
+  .command("preview")
+  .description("Preview (pre-live) operations (/k/v1/preview)");
+
+const { record } = registerRecordCommands(program);
+const { previewApp } = registerPreviewCommands(preview);
 registerFileCommands(program);
+const { app } = registerAppCommands(program);
+registerAclCommands({ program, record, app, preview, previewApp });
 
 program.parseAsync().catch((err: Error) => {
   if (err.name === "KintoneAPIError") {

@@ -1,21 +1,11 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
-
-type GlobalOptions = {
-  authType?: string;
-  guestSpaceId?: string;
-};
-
-const getGlobalOptions = (cmd: Command): GlobalOptions => {
-  const root = cmd.optsWithGlobals();
-  return {
-    authType: root.authType,
-    guestSpaceId: root.guestSpaceId,
-  };
-};
-
-const guestSpaceId = (global: GlobalOptions): number | undefined =>
-  global.guestSpaceId ? Number(global.guestSpaceId) : undefined;
+import {
+  getGlobalOptions,
+  toGuestSpaceId,
+  writeJson,
+  dryRunOutput,
+} from "./shared.js";
 
 type CursorOptions = {
   app: number;
@@ -26,7 +16,6 @@ type CursorOptions = {
 };
 
 const fetchAllWithCursor = async (opts: CursorOptions): Promise<void> => {
-  // 1. POST /k/v1/records/cursor.json — カーソル作成
   const cursorBody: Record<string, unknown> = { app: opts.app, size: 500 };
   if (opts.query) cursorBody.query = opts.query;
   if (opts.fields) cursorBody.fields = opts.fields;
@@ -44,7 +33,6 @@ const fetchAllWithCursor = async (opts: CursorOptions): Promise<void> => {
   const cursorId = cursorResult.id;
 
   try {
-    // 2. GET /k/v1/records/cursor.json — ページごとに取得してNDJSON出力
     let hasNext = true;
     while (hasNext) {
       const page = await kintoneRequest<{ records: unknown[]; next: boolean }>({
@@ -57,7 +45,6 @@ const fetchAllWithCursor = async (opts: CursorOptions): Promise<void> => {
 
       for (const record of page.records) {
         const ok = process.stdout.write(JSON.stringify(record) + "\n");
-        // バックプレッシャー対応: パイプ先が詰まったら待つ
         if (!ok) {
           await new Promise<void>((resolve) =>
             process.stdout.once("drain", resolve),
@@ -68,32 +55,24 @@ const fetchAllWithCursor = async (opts: CursorOptions): Promise<void> => {
       hasNext = page.next;
     }
   } finally {
-    // 3. DELETE /k/v1/records/cursor.json — カーソル削除（エラー時も必ず実行）
     await kintoneRequest({
       method: "DELETE",
       path: "/k/v1/records/cursor.json",
       params: { id: cursorId },
       authType: opts.authType,
       guestSpaceId: opts.guestSpaceId,
-    }).catch(() => {
-      // カーソル削除の失敗は無視（全件取得完了後は自動削除されるため）
-    });
+    }).catch(() => {});
   }
 };
 
-export const registerRecordCommands = (program: Command): void => {
-  program
-    .option(
-      "--auth-type <type>",
-      "Authentication type: api-token, password, oauth",
-    )
-    .option("--guest-space-id <id>", "Guest space ID");
-
+export const registerRecordCommands = (
+  program: Command,
+): { record: Command; records: Command } => {
   const record = program
     .command("record")
     .description("Record operations (/k/v1/record)");
 
-  // GET /k/v1/record.json — クエリパラメータ: app(必須), id(必須)
+  // GET /k/v1/record.json
   record
     .command("get")
     .description("Get a single record")
@@ -106,12 +85,12 @@ export const registerRecordCommands = (program: Command): void => {
         path: "/k/v1/record.json",
         params: { app: opts.app, id: opts.id },
         authType: global.authType,
-        guestSpaceId: guestSpaceId(global),
+        guestSpaceId: toGuestSpaceId(global),
       });
-      process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
+      writeJson(result);
     });
 
-  // POST /k/v1/record.json — requestBody: app(必須), record(必須)
+  // POST /k/v1/record.json
   record
     .command("add")
     .description("Add a single record")
@@ -122,13 +101,7 @@ export const registerRecordCommands = (program: Command): void => {
       const body = JSON.parse(opts.json);
 
       if (opts.dryRun) {
-        process.stdout.write(
-          JSON.stringify(
-            { dryRun: true, method: "POST", path: "/k/v1/record.json", body },
-            undefined,
-            2,
-          ) + "\n",
-        );
+        dryRunOutput({ method: "POST", path: "/k/v1/record.json", body });
         return;
       }
 
@@ -137,12 +110,12 @@ export const registerRecordCommands = (program: Command): void => {
         path: "/k/v1/record.json",
         body,
         authType: global.authType,
-        guestSpaceId: guestSpaceId(global),
+        guestSpaceId: toGuestSpaceId(global),
       });
-      process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
+      writeJson(result);
     });
 
-  // PUT /k/v1/record.json — requestBody: app(必須), id/updateKey, record, revision
+  // PUT /k/v1/record.json
   record
     .command("update")
     .description("Update a single record")
@@ -153,13 +126,7 @@ export const registerRecordCommands = (program: Command): void => {
       const body = JSON.parse(opts.json);
 
       if (opts.dryRun) {
-        process.stdout.write(
-          JSON.stringify(
-            { dryRun: true, method: "PUT", path: "/k/v1/record.json", body },
-            undefined,
-            2,
-          ) + "\n",
-        );
+        dryRunOutput({ method: "PUT", path: "/k/v1/record.json", body });
         return;
       }
 
@@ -168,9 +135,9 @@ export const registerRecordCommands = (program: Command): void => {
         path: "/k/v1/record.json",
         body,
         authType: global.authType,
-        guestSpaceId: guestSpaceId(global),
+        guestSpaceId: toGuestSpaceId(global),
       });
-      process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
+      writeJson(result);
     });
 
   // records (plural)
@@ -178,8 +145,7 @@ export const registerRecordCommands = (program: Command): void => {
     .command("records")
     .description("Records operations (/k/v1/records)");
 
-  // GET /k/v1/records.json — クエリパラメータ: app(必須), query, fields[], totalCount
-  // --page-all: cursor APIで全件取得し、NDJSON形式でストリーム出力
+  // GET /k/v1/records.json
   records
     .command("get")
     .description("Get multiple records")
@@ -190,7 +156,7 @@ export const registerRecordCommands = (program: Command): void => {
     .option("--page-all", "Fetch all records using cursor API (NDJSON output)")
     .action(async (opts, cmd) => {
       const global = getGlobalOptions(cmd);
-      const gSpaceIdValue = guestSpaceId(global);
+      const gSpaceId = toGuestSpaceId(global);
 
       if (opts.pageAll) {
         await fetchAllWithCursor({
@@ -198,7 +164,7 @@ export const registerRecordCommands = (program: Command): void => {
           query: opts.query,
           fields: opts.fields?.split(","),
           authType: global.authType,
-          guestSpaceId: gSpaceIdValue,
+          guestSpaceId: gSpaceId,
         });
         return;
       }
@@ -213,12 +179,12 @@ export const registerRecordCommands = (program: Command): void => {
         path: "/k/v1/records.json",
         params,
         authType: global.authType,
-        guestSpaceId: gSpaceIdValue,
+        guestSpaceId: gSpaceId,
       });
-      process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
+      writeJson(result);
     });
 
-  // POST /k/v1/records.json — requestBody: app(必須), records(必須)
+  // POST /k/v1/records.json
   records
     .command("add")
     .description("Add multiple records")
@@ -229,13 +195,7 @@ export const registerRecordCommands = (program: Command): void => {
       const body = JSON.parse(opts.json);
 
       if (opts.dryRun) {
-        process.stdout.write(
-          JSON.stringify(
-            { dryRun: true, method: "POST", path: "/k/v1/records.json", body },
-            undefined,
-            2,
-          ) + "\n",
-        );
+        dryRunOutput({ method: "POST", path: "/k/v1/records.json", body });
         return;
       }
 
@@ -244,12 +204,12 @@ export const registerRecordCommands = (program: Command): void => {
         path: "/k/v1/records.json",
         body,
         authType: global.authType,
-        guestSpaceId: guestSpaceId(global),
+        guestSpaceId: toGuestSpaceId(global),
       });
-      process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
+      writeJson(result);
     });
 
-  // PUT /k/v1/records.json — requestBody: app(必須), records(必須), upsert
+  // PUT /k/v1/records.json
   records
     .command("update")
     .description("Update multiple records")
@@ -260,13 +220,7 @@ export const registerRecordCommands = (program: Command): void => {
       const body = JSON.parse(opts.json);
 
       if (opts.dryRun) {
-        process.stdout.write(
-          JSON.stringify(
-            { dryRun: true, method: "PUT", path: "/k/v1/records.json", body },
-            undefined,
-            2,
-          ) + "\n",
-        );
+        dryRunOutput({ method: "PUT", path: "/k/v1/records.json", body });
         return;
       }
 
@@ -275,12 +229,12 @@ export const registerRecordCommands = (program: Command): void => {
         path: "/k/v1/records.json",
         body,
         authType: global.authType,
-        guestSpaceId: guestSpaceId(global),
+        guestSpaceId: toGuestSpaceId(global),
       });
-      process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
+      writeJson(result);
     });
 
-  // DELETE /k/v1/records.json — クエリパラメータ: app(必須), ids[](必須), revisions[]
+  // DELETE /k/v1/records.json
   records
     .command("delete")
     .description("Delete multiple records")
@@ -294,18 +248,11 @@ export const registerRecordCommands = (program: Command): void => {
       const parsed = JSON.parse(opts.json);
 
       if (opts.dryRun) {
-        process.stdout.write(
-          JSON.stringify(
-            {
-              dryRun: true,
-              method: "DELETE",
-              path: "/k/v1/records.json",
-              params: parsed,
-            },
-            undefined,
-            2,
-          ) + "\n",
-        );
+        dryRunOutput({
+          method: "DELETE",
+          path: "/k/v1/records.json",
+          params: parsed,
+        });
         return;
       }
 
@@ -314,8 +261,10 @@ export const registerRecordCommands = (program: Command): void => {
         path: "/k/v1/records.json",
         params: parsed,
         authType: global.authType,
-        guestSpaceId: guestSpaceId(global),
+        guestSpaceId: toGuestSpaceId(global),
       });
-      process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
+      writeJson(result);
     });
+
+  return { record, records };
 };

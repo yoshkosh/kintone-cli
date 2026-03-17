@@ -9,7 +9,7 @@ type RequestOptions = {
   guestSpaceId?: number;
 };
 
-const getBaseUrl = (): string => {
+export const getBaseUrl = (): string => {
   const url = process.env.KINTONE_BASE_URL;
   if (!url) {
     throw new Error("KINTONE_BASE_URL is not set.");
@@ -17,7 +17,7 @@ const getBaseUrl = (): string => {
   return url.replace(/\/$/, "");
 };
 
-const buildPath = (path: string, guestSpaceId?: number): string => {
+export const buildPath = (path: string, guestSpaceId?: number): string => {
   if (guestSpaceId) {
     return path.replace("/k/v1/", `/k/guest/${guestSpaceId}/v1/`);
   }

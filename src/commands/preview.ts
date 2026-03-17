@@ -1,27 +1,15 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
+import {
+  getGlobalOptions,
+  toGuestSpaceId,
+  writeJson,
+  dryRunOutput,
+} from "./shared.js";
 
-type GlobalOptions = {
-  authType?: string;
-  guestSpaceId?: string;
-};
-
-const getGlobalOptions = (cmd: Command): GlobalOptions => {
-  const root = cmd.optsWithGlobals();
-  return {
-    authType: root.authType,
-    guestSpaceId: root.guestSpaceId,
-  };
-};
-
-const guestSpaceId = (global: GlobalOptions): number | undefined =>
-  global.guestSpaceId ? Number(global.guestSpaceId) : undefined;
-
-export const registerPreviewCommands = (program: Command): void => {
-  const preview = program
-    .command("preview")
-    .description("Preview (pre-live) operations (/k/v1/preview)");
-
+export const registerPreviewCommands = (
+  preview: Command,
+): { previewApp: Command } => {
   const previewApp = preview
     .command("app")
     .description("Preview app operations");
@@ -32,7 +20,7 @@ export const registerPreviewCommands = (program: Command): void => {
     .command("deploy")
     .description("App deploy operations (/k/v1/preview/app/deploy)");
 
-  // GET /k/v1/preview/app/deploy.json — クエリパラメータ: apps[](必須)
+  // GET /k/v1/preview/app/deploy.json
   deploy
     .command("get")
     .description("Get deploy status of apps")
@@ -46,12 +34,12 @@ export const registerPreviewCommands = (program: Command): void => {
         path: "/k/v1/preview/app/deploy.json",
         params: { apps },
         authType: global.authType,
-        guestSpaceId: guestSpaceId(global),
+        guestSpaceId: toGuestSpaceId(global),
       });
-      process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
+      writeJson(result);
     });
 
-  // POST /k/v1/preview/app/deploy.json — requestBody: apps(必須), revert
+  // POST /k/v1/preview/app/deploy.json
   deploy
     .command("add")
     .description("Deploy app settings to live")
@@ -62,18 +50,11 @@ export const registerPreviewCommands = (program: Command): void => {
       const body = JSON.parse(opts.json);
 
       if (opts.dryRun) {
-        process.stdout.write(
-          JSON.stringify(
-            {
-              dryRun: true,
-              method: "POST",
-              path: "/k/v1/preview/app/deploy.json",
-              body,
-            },
-            undefined,
-            2,
-          ) + "\n",
-        );
+        dryRunOutput({
+          method: "POST",
+          path: "/k/v1/preview/app/deploy.json",
+          body,
+        });
         return;
       }
 
@@ -82,9 +63,9 @@ export const registerPreviewCommands = (program: Command): void => {
         path: "/k/v1/preview/app/deploy.json",
         body,
         authType: global.authType,
-        guestSpaceId: guestSpaceId(global),
+        guestSpaceId: toGuestSpaceId(global),
       });
-      process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
+      writeJson(result);
     });
 
   // --- form-fields ---
@@ -95,7 +76,7 @@ export const registerPreviewCommands = (program: Command): void => {
       "Preview form field operations (/k/v1/preview/app/form/fields)",
     );
 
-  // GET /k/v1/preview/app/form/fields.json — クエリパラメータ: app(必須), lang
+  // GET /k/v1/preview/app/form/fields.json
   formFields
     .command("get")
     .description("Get form fields (pre-live)")
@@ -111,12 +92,12 @@ export const registerPreviewCommands = (program: Command): void => {
         path: "/k/v1/preview/app/form/fields.json",
         params,
         authType: global.authType,
-        guestSpaceId: guestSpaceId(global),
+        guestSpaceId: toGuestSpaceId(global),
       });
-      process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
+      writeJson(result);
     });
 
-  // POST /k/v1/preview/app/form/fields.json — requestBody: app(必須), properties(必須), revision
+  // POST /k/v1/preview/app/form/fields.json
   formFields
     .command("add")
     .description("Add form fields (pre-live)")
@@ -127,18 +108,11 @@ export const registerPreviewCommands = (program: Command): void => {
       const body = JSON.parse(opts.json);
 
       if (opts.dryRun) {
-        process.stdout.write(
-          JSON.stringify(
-            {
-              dryRun: true,
-              method: "POST",
-              path: "/k/v1/preview/app/form/fields.json",
-              body,
-            },
-            undefined,
-            2,
-          ) + "\n",
-        );
+        dryRunOutput({
+          method: "POST",
+          path: "/k/v1/preview/app/form/fields.json",
+          body,
+        });
         return;
       }
 
@@ -147,12 +121,12 @@ export const registerPreviewCommands = (program: Command): void => {
         path: "/k/v1/preview/app/form/fields.json",
         body,
         authType: global.authType,
-        guestSpaceId: guestSpaceId(global),
+        guestSpaceId: toGuestSpaceId(global),
       });
-      process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
+      writeJson(result);
     });
 
-  // PUT /k/v1/preview/app/form/fields.json — requestBody: app(必須), properties(必須), revision
+  // PUT /k/v1/preview/app/form/fields.json
   formFields
     .command("update")
     .description("Update form fields (pre-live)")
@@ -163,18 +137,11 @@ export const registerPreviewCommands = (program: Command): void => {
       const body = JSON.parse(opts.json);
 
       if (opts.dryRun) {
-        process.stdout.write(
-          JSON.stringify(
-            {
-              dryRun: true,
-              method: "PUT",
-              path: "/k/v1/preview/app/form/fields.json",
-              body,
-            },
-            undefined,
-            2,
-          ) + "\n",
-        );
+        dryRunOutput({
+          method: "PUT",
+          path: "/k/v1/preview/app/form/fields.json",
+          body,
+        });
         return;
       }
 
@@ -183,12 +150,12 @@ export const registerPreviewCommands = (program: Command): void => {
         path: "/k/v1/preview/app/form/fields.json",
         body,
         authType: global.authType,
-        guestSpaceId: guestSpaceId(global),
+        guestSpaceId: toGuestSpaceId(global),
       });
-      process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
+      writeJson(result);
     });
 
-  // DELETE /k/v1/preview/app/form/fields.json — クエリパラメータ: app(必須), fields[](必須), revision
+  // DELETE /k/v1/preview/app/form/fields.json
   formFields
     .command("delete")
     .description("Delete form fields (pre-live)")
@@ -208,18 +175,11 @@ export const registerPreviewCommands = (program: Command): void => {
       if (opts.revision) params.revision = opts.revision;
 
       if (opts.dryRun) {
-        process.stdout.write(
-          JSON.stringify(
-            {
-              dryRun: true,
-              method: "DELETE",
-              path: "/k/v1/preview/app/form/fields.json",
-              params,
-            },
-            undefined,
-            2,
-          ) + "\n",
-        );
+        dryRunOutput({
+          method: "DELETE",
+          path: "/k/v1/preview/app/form/fields.json",
+          params,
+        });
         return;
       }
 
@@ -228,8 +188,10 @@ export const registerPreviewCommands = (program: Command): void => {
         path: "/k/v1/preview/app/form/fields.json",
         params,
         authType: global.authType,
-        guestSpaceId: guestSpaceId(global),
+        guestSpaceId: toGuestSpaceId(global),
       });
-      process.stdout.write(JSON.stringify(result, undefined, 2) + "\n");
+      writeJson(result);
     });
+
+  return { previewApp };
 };
