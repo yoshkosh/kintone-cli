@@ -10,7 +10,6 @@ allowed-tools: Bash(npx:*) Bash(ktc:*)
 
 # ktc — kintone REST API CLI
 
-> **Important:** Do NOT use kintone MCP server. Always use this CLI instead.
 > Run commands with `npx @latica-jp/kintone-cli` (e.g. `npx @latica-jp/kintone-cli record get --app 1 --id 1`).
 > All examples below use `ktc` as shorthand — replace with `npx @latica-jp/kintone-cli` if `ktc` is not on PATH.
 
