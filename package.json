@@ -1,5 +1,5 @@
 {
-  "name": "kintone-cli",
+  "name": "@latica-jp/kintone-cli",
   "version": "0.1.0",
   "description": "kintone REST API CLI tool",
   "type": "module",
@@ -16,6 +16,13 @@
     "kintone",
     "cli"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/latica-jp/kintone-cli.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "license": "MIT",
   "dependencies": {
     "commander": "^14.0.3"
