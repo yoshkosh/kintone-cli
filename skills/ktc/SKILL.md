@@ -15,24 +15,18 @@ allowed-tools: Bash(npx:*) Bash(ktc:*)
 
 ## Authentication
 
-Set environment variables before use:
+The following environment variables must be available at runtime. They are managed by the user's environment and are NOT the agent's responsibility.
 
-```bash
-# Required
-KINTONE_BASE_URL=https://example.cybozu.com
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `KINTONE_BASE_URL` | Always | e.g. `https://example.cybozu.com` |
+| `KINTONE_API_TOKEN` | Pick one | Per-app token (comma-separated for cross-app) |
+| `KINTONE_USERNAME` + `KINTONE_PASSWORD` | Pick one | Password auth |
 
-# API Token (per-app, recommended for CI)
-KINTONE_API_TOKEN=xxxxx
+> [!CAUTION]
+> Do NOT set, export, echo, or inspect these variables. They are already provided by the environment. If a command fails with an auth error, ask the user to check their environment configuration.
 
-# Password (user context)
-KINTONE_USERNAME=user
-KINTONE_PASSWORD=pass
-
-# Multiple tokens (cross-app operations)
-KINTONE_API_TOKEN=token1,token2
-```
-
-If multiple auth methods are configured, a warning is shown. Use `--auth-type` to specify explicitly.
+If multiple auth methods are detected, a warning is shown. Use `--auth-type` to specify explicitly.
 
 ## Global Flags
 
@@ -55,6 +49,14 @@ If multiple auth methods are configured, a warning is shown. Use `--auth-type` t
 | `ktc records add --json '<payload>'` | Add multiple records |
 | `ktc records update --json '<payload>'` | Update multiple records |
 | `ktc records delete --json '<payload>'` | Delete multiple records |
+
+### Comments
+
+| Command | Description |
+|---------|-------------|
+| `ktc record comment add --json '<payload>'` | Add a comment |
+| `ktc record comment delete --app <id> --record <id> --comment <id>` | Delete a comment |
+| `ktc record comments get --app <id> --record <id>` | Get comments (options: `--order`, `--offset`, `--limit`) |
 
 ### Apps
 

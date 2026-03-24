@@ -11,6 +11,7 @@ import { registerPreviewCommands } from "./commands/preview.js";
 import { registerFileCommands } from "./commands/file.js";
 import { registerAppCommands } from "./commands/app.js";
 import { registerAclCommands } from "./commands/acl.js";
+import { registerCommentCommands } from "./commands/comment.js";
 
 program
   .name("ktc")
@@ -27,6 +28,7 @@ const preview = program
   .description("Preview (pre-live) operations (/k/v1/preview)");
 
 const { record } = registerRecordCommands(program);
+registerCommentCommands(record);
 const { previewApp } = registerPreviewCommands(preview);
 registerFileCommands(program);
 const { app } = registerAppCommands(program);
