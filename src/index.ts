@@ -16,7 +16,7 @@ import { registerCommentCommands } from "./commands/comment.js";
 program
   .name("ktc")
   .description("kintone REST API CLI")
-  .version("0.1.0")
+  .version("0.2.0")
   .option(
     "--auth-type <type>",
     "Authentication type: api-token, password, oauth",

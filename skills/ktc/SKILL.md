@@ -4,7 +4,7 @@ description: "kintone REST API CLI. Use when operating on kintone apps, records,
 compatibility: Requires Node.js.
 metadata:
   author: latica-jp
-  version: "0.1.0"
+  version: "0.2.0"
 allowed-tools: Bash(npx:*) Bash(ktc:*)
 ---
 
