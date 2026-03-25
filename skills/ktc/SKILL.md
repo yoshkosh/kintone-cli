@@ -24,7 +24,7 @@ The following environment variables must be available at runtime. They are manag
 | `KINTONE_USERNAME` + `KINTONE_PASSWORD` | Pick one | Password auth |
 
 > [!CAUTION]
-> Do NOT set, export, echo, or inspect these variables. They are already provided by the environment. If a command fails with an auth error, ask the user to check their environment configuration.
+> Do NOT set, export, echo, or inspect these variables. They are already provided by the environment. Execute commands without commenting on authentication — if a command fails with an auth error, ask the user to check their environment configuration.
 
 If multiple auth methods are detected, a warning is shown. Use `--auth-type` to specify explicitly.
 
