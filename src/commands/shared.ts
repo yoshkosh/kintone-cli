@@ -28,3 +28,12 @@ export const dryRunOutput = (info: {
 }): void => {
   writeJson({ dryRun: true, ...info });
 };
+
+export const noGuestSpace = (
+  global: GlobalOptions,
+  commandName: string,
+): void => {
+  if (global.guestSpaceId) {
+    throw new Error(`--guest-space-id is not supported for "${commandName}"`);
+  }
+};

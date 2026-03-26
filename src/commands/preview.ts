@@ -193,5 +193,144 @@ export const registerPreviewCommands = (
       writeJson(result);
     });
 
+  // --- preview app add ---
+
+  // POST /k/v1/preview/app.json
+  previewApp
+    .command("add")
+    .description("Create a new app")
+    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--dry-run", "Validate without executing")
+    .action(async (opts, cmd) => {
+      const global = getGlobalOptions(cmd);
+      const body = JSON.parse(opts.json);
+
+      if (opts.dryRun) {
+        dryRunOutput({
+          method: "POST",
+          path: "/k/v1/preview/app.json",
+          body,
+        });
+        return;
+      }
+
+      const result = await kintoneRequest({
+        method: "POST",
+        path: "/k/v1/preview/app.json",
+        body,
+        authType: global.authType,
+        guestSpaceId: toGuestSpaceId(global),
+      });
+      writeJson(result);
+    });
+
+  // --- preview app settings ---
+
+  const previewSettings = previewApp
+    .command("settings")
+    .description("Preview app settings operations");
+
+  // GET /k/v1/preview/app/settings.json
+  previewSettings
+    .command("get")
+    .description("Get app settings (pre-live)")
+    .requiredOption("--app <id>", "App ID")
+    .option("--lang <lang>", "Language: default, en, zh, ja, user")
+    .action(async (opts, cmd) => {
+      const global = getGlobalOptions(cmd);
+      const params: Record<string, unknown> = { app: opts.app };
+      if (opts.lang) params.lang = opts.lang;
+
+      const result = await kintoneRequest({
+        method: "GET",
+        path: "/k/v1/preview/app/settings.json",
+        params,
+        authType: global.authType,
+        guestSpaceId: toGuestSpaceId(global),
+      });
+      writeJson(result);
+    });
+
+  // PUT /k/v1/preview/app/settings.json
+  previewSettings
+    .command("update")
+    .description("Update app settings (pre-live)")
+    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--dry-run", "Validate without executing")
+    .action(async (opts, cmd) => {
+      const global = getGlobalOptions(cmd);
+      const body = JSON.parse(opts.json);
+
+      if (opts.dryRun) {
+        dryRunOutput({
+          method: "PUT",
+          path: "/k/v1/preview/app/settings.json",
+          body,
+        });
+        return;
+      }
+
+      const result = await kintoneRequest({
+        method: "PUT",
+        path: "/k/v1/preview/app/settings.json",
+        body,
+        authType: global.authType,
+        guestSpaceId: toGuestSpaceId(global),
+      });
+      writeJson(result);
+    });
+
+  // --- preview app form-layout ---
+
+  const previewFormLayout = previewApp
+    .command("form-layout")
+    .description("Preview form layout operations");
+
+  // GET /k/v1/preview/app/form/layout.json
+  previewFormLayout
+    .command("get")
+    .description("Get form layout (pre-live)")
+    .requiredOption("--app <id>", "App ID")
+    .action(async (opts, cmd) => {
+      const global = getGlobalOptions(cmd);
+      const result = await kintoneRequest({
+        method: "GET",
+        path: "/k/v1/preview/app/form/layout.json",
+        params: { app: opts.app },
+        authType: global.authType,
+        guestSpaceId: toGuestSpaceId(global),
+      });
+      writeJson(result);
+    });
+
+  // PUT /k/v1/preview/app/form/layout.json
+  previewFormLayout
+    .command("update")
+    .description("Update form layout (pre-live)")
+    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--dry-run", "Validate without executing")
+    .action(async (opts, cmd) => {
+      const global = getGlobalOptions(cmd);
+      const body = JSON.parse(opts.json);
+
+      if (opts.dryRun) {
+        dryRunOutput({
+          method: "PUT",
+          path: "/k/v1/preview/app/form/layout.json",
+          body,
+        });
+        return;
+      }
+
+      const result = await kintoneRequest({
+        method: "PUT",
+        path: "/k/v1/preview/app/form/layout.json",
+        body,
+        authType: global.authType,
+        guestSpaceId: toGuestSpaceId(global),
+      });
+      writeJson(result);
+    });
+
   return { previewApp };
 };

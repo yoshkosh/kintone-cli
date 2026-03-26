@@ -1,10 +1,10 @@
 ---
 name: ktc
-description: "kintone REST API CLI. Use when operating on kintone apps, records, fields, ACLs, or files. Supports all CRUD operations, bulk data export via NDJSON streaming, and pre-live (preview) settings management."
+description: "kintone REST API CLI. Use when operating on kintone apps, records, fields, ACLs, spaces, plugins, or files. Supports all CRUD operations, bulk data export via NDJSON streaming, pre-live (preview) settings management, and system administration."
 compatibility: Requires Node.js.
 metadata:
   author: latica-jp
-  version: "0.2.0"
+  version: "0.3.0"
 allowed-tools: Bash(npx:*) Bash(ktc:*)
 ---
 
@@ -50,6 +50,15 @@ If multiple auth methods are detected, a warning is shown. Use `--auth-type` to 
 | `ktc records update --json '<payload>'` | Update multiple records |
 | `ktc records delete --json '<payload>'` | Delete multiple records |
 
+### Record Status & Assignees
+
+| Command | Description |
+|---------|-------------|
+| `ktc record status update --json '<payload>'` | Update record status (process management) |
+| `ktc records status update --json '<payload>'` | Update multiple record statuses |
+| `ktc record assignees update --json '<payload>'` | Update record assignees |
+| `ktc records acl-evaluate get --app <id> --ids <ids>` | Evaluate record ACL permissions |
+
 ### Comments
 
 | Command | Description |
@@ -67,6 +76,22 @@ If multiple auth methods are detected, a warning is shown. Use `--auth-type` to 
 | `ktc app form-fields get --app <id>` | Get form fields (live) |
 | `ktc app form-layout get --app <id>` | Get form layout |
 | `ktc app settings get --app <id>` | Get app settings |
+| `ktc app move add --json '<payload>'` | Move app to another space |
+
+### App Settings (Live — read only)
+
+| Command | Description |
+|---------|-------------|
+| `ktc app views get --app <id>` | Get app views |
+| `ktc app customize get --app <id>` | Get JS/CSS customization |
+| `ktc app reports get --app <id>` | Get app reports (graphs) |
+| `ktc app status get --app <id>` | Get process management settings |
+| `ktc app actions get --app <id>` | Get app action settings |
+| `ktc app admin-notes get --app <id>` | Get admin notes |
+| `ktc app notifications-general get --app <id>` | Get general notifications |
+| `ktc app notifications-per-record get --app <id>` | Get per-record notifications |
+| `ktc app notifications-reminder get --app <id>` | Get reminder notifications |
+| `ktc app plugins get --app <id>` | Get app plugins |
 
 ### ACL
 
@@ -80,18 +105,95 @@ If multiple auth methods are detected, a warning is shown. Use `--auth-type` to 
 
 | Command | Description |
 |---------|-------------|
+| `ktc preview app add --json '<payload>'` | Create a new app |
 | `ktc preview app deploy add --json '<payload>'` | Deploy app settings |
 | `ktc preview app deploy get --apps <ids>` | Get deploy status |
+| `ktc preview app settings get --app <id>` | Get app settings (pre-live) |
+| `ktc preview app settings update --json '<payload>'` | Update app settings |
 | `ktc preview app form-fields get --app <id>` | Get form fields (pre-live) |
 | `ktc preview app form-fields add --json '<payload>'` | Add form fields |
 | `ktc preview app form-fields update --json '<payload>'` | Update form fields |
 | `ktc preview app form-fields delete --app <id> --fields <codes>` | Delete form fields |
+| `ktc preview app form-layout get --app <id>` | Get form layout (pre-live) |
+| `ktc preview app form-layout update --json '<payload>'` | Update form layout |
 | `ktc preview app acl get --app <id>` | Get app ACL (pre-live) |
 | `ktc preview app acl update --json '<payload>'` | Update app ACL |
 | `ktc preview field-acl get --app <id>` | Get field ACL (pre-live) |
 | `ktc preview field-acl update --json '<payload>'` | Update field ACL |
 | `ktc preview record-acl get --app <id>` | Get record ACL (pre-live) |
 | `ktc preview record-acl update --json '<payload>'` | Update record ACL |
+
+### Preview App Settings (read/write)
+
+| Command | Description |
+|---------|-------------|
+| `ktc preview app views get --app <id>` | Get views (pre-live) |
+| `ktc preview app views update --json '<payload>'` | Update views |
+| `ktc preview app customize get --app <id>` | Get JS/CSS customization (pre-live) |
+| `ktc preview app customize update --json '<payload>'` | Update JS/CSS customization |
+| `ktc preview app reports get --app <id>` | Get reports (pre-live) |
+| `ktc preview app reports update --json '<payload>'` | Update reports |
+| `ktc preview app status get --app <id>` | Get process management (pre-live) |
+| `ktc preview app status update --json '<payload>'` | Update process management |
+| `ktc preview app actions get --app <id>` | Get actions (pre-live) |
+| `ktc preview app actions update --json '<payload>'` | Update actions |
+| `ktc preview app admin-notes get --app <id>` | Get admin notes (pre-live) |
+| `ktc preview app admin-notes update --json '<payload>'` | Update admin notes |
+| `ktc preview app notifications-general get --app <id>` | Get general notifications (pre-live) |
+| `ktc preview app notifications-general update --json '<payload>'` | Update general notifications |
+| `ktc preview app notifications-per-record get --app <id>` | Get per-record notifications (pre-live) |
+| `ktc preview app notifications-per-record update --json '<payload>'` | Update per-record notifications |
+| `ktc preview app notifications-reminder get --app <id>` | Get reminder notifications (pre-live) |
+| `ktc preview app notifications-reminder update --json '<payload>'` | Update reminder notifications |
+| `ktc preview app plugins get --app <id>` | Get app plugins (pre-live) |
+| `ktc preview app plugins add --json '<payload>'` | Add plugins to app |
+
+### Spaces
+
+| Command | Description |
+|---------|-------------|
+| `ktc space get --id <id>` | Get space info |
+| `ktc space update --json '<payload>'` | Update space settings |
+| `ktc space delete --id <id>` | Delete a space |
+| `ktc space body update --json '<payload>'` | Update space body |
+| `ktc space members get --id <id>` | Get space members |
+| `ktc space members update --json '<payload>'` | Update space members |
+| `ktc space guests update --json '<payload>'` | Update space guests |
+| `ktc space thread add --json '<payload>'` | Create a thread |
+| `ktc space thread update --json '<payload>'` | Update a thread |
+| `ktc space thread comment add --json '<payload>'` | Add a thread comment |
+| `ktc template space add --json '<payload>'` | Create space from template |
+
+### Guest Users
+
+| Command | Description |
+|---------|-------------|
+| `ktc guests add --json '<payload>'` | Add guest users |
+| `ktc guests delete --guests <emails>` | Delete guest users |
+
+### System Plugins
+
+| Command | Description |
+|---------|-------------|
+| `ktc plugin add --json '<payload>'` | Install a plugin |
+| `ktc plugin update --json '<payload>'` | Update a plugin |
+| `ktc plugin delete --id <id>` | Uninstall a plugin |
+| `ktc plugin apps get --id <id>` | Get apps using a plugin |
+| `ktc plugins get` | Get installed plugins |
+| `ktc plugins required get` | Get required plugins |
+
+### Bulk Request
+
+| Command | Description |
+|---------|-------------|
+| `ktc bulk-request add --json '<payload>'` | Execute multiple API requests in one call |
+
+### Statistics
+
+| Command | Description |
+|---------|-------------|
+| `ktc apps statistics get --ids <ids>` | Get app statistics |
+| `ktc spaces statistics get --ids <ids>` | Get space statistics |
 
 ### Files
 
@@ -120,6 +222,7 @@ If multiple auth methods are detected, a warning is shown. Use `--auth-type` to 
 - For bulk data, use `--page-all` and pipe through `jq` — do NOT load all records into context
 - `--json` accepts the kintone API request body as-is — refer to [kintone REST API docs](https://kintone.dev/en/docs/kintone/rest-api/)
 - Command structure follows kintone API paths for predictability
+- System-level commands (`plugin`, `plugins`, `bulk-request`, `guests`, statistics) do not support `--guest-space-id`
 
 ## Examples
 
@@ -137,10 +240,20 @@ ktc records get --app 42 --page-all --fields "レコード番号,名前" | jq 's
 ktc record add --dry-run --json '{"app": 42, "record": {"名前": {"value": "新規"}}}'
 ktc record add --json '{"app": 42, "record": {"名前": {"value": "新規"}}}'
 
+# Update record status (process management)
+ktc record status update --dry-run --json '{"app": 42, "id": 1, "action": "承認する"}'
+
 # Deploy app settings
 ktc preview app deploy add --json '{"apps": [{"app": 42}]}'
 ktc preview app deploy get --apps 42
 
 # Get app permissions
 ktc app acl get --app 42
+
+# Space operations
+ktc space get --id 1
+ktc space members get --id 1
+
+# Bulk request
+ktc bulk-request add --dry-run --json '{"requests": [{"method": "GET", "api": "/k/v1/record.json", "payload": {"app": 1, "id": 1}}]}'
 ```

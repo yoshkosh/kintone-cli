@@ -226,7 +226,14 @@ ktc records get --app 1 --page-all > records.jsonl
 
 ### Phase 3: 全API実装
 
-Phase 1〜2の設計検証後、残りの全APIを実装する。
+Phase 1〜2の設計検証後、残りの全APIを実装する。6バッチに分けて実装:
+
+1. スペース・ゲスト関連API（space, thread, template, guests）
+2. レコードステータス・担当者API（record status, assignees, acl-evaluate）
+3. Preview Appコア機能（preview app add, settings, form-layout）
+4. アプリ設定API群（views, customize, reports, status, actions, admin-notes, notifications×3 — テーブル駆動で一括実装）
+5. アプリプラグイン・移動（app plugins, preview app plugins, app move）
+6. システム管理API（plugin, plugins, bulk-request, statistics）
 
 ## SKILL.md
 
