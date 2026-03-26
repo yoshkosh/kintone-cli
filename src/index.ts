@@ -23,7 +23,7 @@ import { registerStatisticsCommands } from "./commands/statistics.js";
 program
   .name("ktc")
   .description("kintone REST API CLI")
-  .version("0.3.0")
+  .version("0.4.0")
   .option(
     "--auth-type <type>",
     "Authentication type: api-token, password, oauth",
