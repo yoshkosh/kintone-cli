@@ -88,17 +88,17 @@ export const registerAclCommands = ({
 }): void => {
   // --- Live ACL GET ---
 
-  // ktc app acl get → GET /k/v1/app/acl.json
+  // ktapp acl get → GET /k/v1/app/acl.json
   const appAcl = app.command("acl").description("App ACL operations");
   registerAclGet({ parent: appAcl, path: "/k/v1/app/acl.json" });
 
-  // ktc field-acl get → GET /k/v1/field/acl.json
+  // ktfield-acl get → GET /k/v1/field/acl.json
   const fieldAcl = program
     .command("field-acl")
     .description("Field ACL operations (/k/v1/field/acl)");
   registerAclGet({ parent: fieldAcl, path: "/k/v1/field/acl.json" });
 
-  // ktc record acl get → GET /k/v1/record/acl.json
+  // ktrecord acl get → GET /k/v1/record/acl.json
   const recordAcl = record.command("acl").description("Record ACL operations");
   registerAclGet({
     parent: recordAcl,
@@ -108,7 +108,7 @@ export const registerAclCommands = ({
 
   // --- Preview ACL GET + PUT ---
 
-  // ktc preview app acl get/update → /k/v1/preview/app/acl.json
+  // ktpreview app acl get/update → /k/v1/preview/app/acl.json
   const previewAppAcl = previewApp
     .command("acl")
     .description("Preview app ACL operations");
@@ -118,7 +118,7 @@ export const registerAclCommands = ({
     path: "/k/v1/preview/app/acl.json",
   });
 
-  // ktc preview field-acl get/update → /k/v1/preview/field/acl.json
+  // ktpreview field-acl get/update → /k/v1/preview/field/acl.json
   const previewFieldAcl = preview
     .command("field-acl")
     .description("Preview field ACL operations");
@@ -131,7 +131,7 @@ export const registerAclCommands = ({
     path: "/k/v1/preview/field/acl.json",
   });
 
-  // ktc preview record-acl get/update → /k/v1/preview/record/acl.json
+  // ktpreview record-acl get/update → /k/v1/preview/record/acl.json
   const previewRecordAcl = preview
     .command("record-acl")
     .description("Preview record ACL operations");

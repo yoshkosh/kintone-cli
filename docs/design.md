@@ -37,7 +37,7 @@ kintone REST APIをラップしたCLIツール。
 ## パッケージ・コマンド名
 
 - パッケージ名: `kintone-cli`
-- コマンド名: `kintone-cli`（正式）、`ktc`（短縮）
+- コマンド名: `kintone-cli`（正式）、`kt`（短縮）
 - 両方使用可能
 
 ```json
@@ -45,12 +45,12 @@ kintone REST APIをラップしたCLIツール。
   "name": "kintone-cli",
   "bin": {
     "kintone-cli": "./dist/index.js",
-    "ktc": "./dist/index.js"
+    "kt": "./dist/index.js"
   }
 }
 ```
 
-SKILL.mdでは `ktc` を正規名として案内する。
+SKILL.mdでは `kt` を正規名として案内する。
 
 ## コマンド体系
 
@@ -62,16 +62,16 @@ kintone REST APIのパス構造に準拠する。
 - HTTPメソッド → 動詞（`GET` → `get`, `POST` → `add`, `PUT` → `update`, `DELETE` → `delete`）
 
 ```
-GET    /k/v1/record          → ktc record get
-POST   /k/v1/record          → ktc record add
-PUT    /k/v1/record          → ktc record update
-DELETE /k/v1/records         → ktc records delete
-GET    /k/v1/records         → ktc records get
-GET    /k/v1/app             → ktc app get
-GET    /k/v1/apps            → ktc apps get
-GET    /k/v1/app/form/fields → ktc app form-fields get
-POST   /k/v1/record/comment  → ktc record comment add
-GET    /k/v1/record/comments → ktc record comments get
+GET    /k/v1/record          → kt record get
+POST   /k/v1/record          → kt record add
+PUT    /k/v1/record          → kt record update
+DELETE /k/v1/records         → kt records delete
+GET    /k/v1/records         → kt records get
+GET    /k/v1/app             → kt app get
+GET    /k/v1/apps            → kt apps get
+GET    /k/v1/app/form/fields → kt app form-fields get
+POST   /k/v1/record/comment  → kt record comment add
+GET    /k/v1/record/comments → kt record comments get
 ```
 
 ### preview系API
@@ -79,9 +79,9 @@ GET    /k/v1/record/comments → ktc record comments get
 `preview` をサブコマンドとして配置する（API準拠）。
 
 ```
-PUT  /k/v1/preview/app/form/fields → ktc preview app form-fields update
-POST /k/v1/preview/app/deploy      → ktc preview app deploy add
-GET  /k/v1/preview/app/deploy      → ktc preview app deploy get
+PUT  /k/v1/preview/app/form/fields → kt preview app form-fields update
+POST /k/v1/preview/app/deploy      → kt preview app deploy add
+GET  /k/v1/preview/app/deploy      → kt preview app deploy get
 ```
 
 ### guest space対応
@@ -89,7 +89,7 @@ GET  /k/v1/preview/app/deploy      → ktc preview app deploy get
 `--guest-space-id` フラグでパスを切り替える。guest系はAPIの機能・パラメータが通常版と同一で、パスだけが異なるため。
 
 ```bash
-ktc record get --app 1 --guest-space-id 5
+kt record get --app 1 --guest-space-id 5
 # → GET /k/guest/5/v1/record
 ```
 
@@ -99,10 +99,10 @@ ktc record get --app 1 --guest-space-id 5
 
 ```bash
 # 生ペイロード
-ktc record add --json '{"app": 1, "records": [{"名前": {"value": "田中"}}]}'
+kt record add --json '{"app": 1, "records": [{"名前": {"value": "田中"}}]}'
 
 # 便利フラグ（頻用APIのみ）
-ktc record get --app 1 --id 10
+kt record get --app 1 --id 10
 ```
 
 ## 認証
@@ -141,7 +141,7 @@ KINTONE_OAUTH_REFRESH_TOKEN=xxxxx
 複数の認証情報が同時にセットされている場合、**警告を出しつつ動作する**。`--auth-type` で明示指定すれば警告なし。
 
 ```bash
-$ ktc record get --app 1
+$ kt record get --app 1
 Warning: Multiple auth methods detected. Using API token. Use --auth-type to specify.
 ```
 
@@ -153,11 +153,11 @@ Warning: Multiple auth methods detected. Using API token. Use --auth-type to spe
 
 ```bash
 # CLI側エラー
-$ ktc record get
+$ kt record get
 Error: Missing required option: --app
 
 # APIエラー
-$ ktc record get --app 999
+$ kt record get --app 999
 {"code":"GAIA_APP01","id":"xxx","message":"The app (app: 999) not found..."}
 ```
 
@@ -168,7 +168,7 @@ $ ktc record get --app 999
 取得するフィールドを指定し、出力を必要最小限に制限する。AIエージェントのコンテキストウィンドウ節約に有効。
 
 ```bash
-ktc record get --app 1 --id 10 --fields "レコード番号,名前,ステータス"
+kt record get --app 1 --id 10 --fields "レコード番号,名前,ステータス"
 ```
 
 ### ページネーション
@@ -177,10 +177,10 @@ ktc record get --app 1 --id 10 --fields "レコード番号,名前,ステータ�
 
 ```bash
 # デフォルト: 1ページ分のJSON配列
-ktc records get --app 1
+kt records get --app 1
 
 # 全件取得: NDJSONでストリーム出力（1行1レコード）
-ktc records get --app 1 --page-all
+kt records get --app 1 --page-all
 ```
 
 `--page-all` 時はNDJSON（Newline Delimited JSON）形式で出力する。内部ではcursor APIを使用し、1レコードずつストリーム出力するため：
@@ -191,10 +191,10 @@ ktc records get --app 1 --page-all
 
 ```bash
 # パイプで絞り込み
-ktc records get --app 1 --page-all | jq 'select(.ステータス.value == "完了")'
+kt records get --app 1 --page-all | jq 'select(.ステータス.value == "完了")'
 
 # ファイルに保存
-ktc records get --app 1 --page-all > records.jsonl
+kt records get --app 1 --page-all > records.jsonl
 ```
 
 ## 技術スタック

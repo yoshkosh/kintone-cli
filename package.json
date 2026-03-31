@@ -1,11 +1,14 @@
 {
   "name": "@latica-jp/kintone-cli",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "kintone REST API CLI tool",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "bin": {
     "kintone-cli": "./dist/index.js",
-    "ktc": "./dist/index.js"
+    "kt": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",

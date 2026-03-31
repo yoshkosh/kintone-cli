@@ -7,7 +7,7 @@ export const registerStatisticsCommands = ({
 }: {
   program: Command;
 }): void => {
-  // ktc apps statistics get
+  // ktapps statistics get
   const apps = program.commands.find((c) => c.name() === "apps");
   if (apps) {
     const appsStats = apps.command("statistics").description("Apps statistics");
@@ -32,7 +32,7 @@ export const registerStatisticsCommands = ({
       });
   }
 
-  // ktc spaces statistics get
+  // ktspaces statistics get
   const spaces = program.command("spaces").description("Spaces operations");
   const spacesStats = spaces
     .command("statistics")

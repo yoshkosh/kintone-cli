@@ -21,9 +21,9 @@ import { registerBulkRequestCommands } from "./commands/bulk-request.js";
 import { registerStatisticsCommands } from "./commands/statistics.js";
 
 program
-  .name("ktc")
+  .name("kt")
   .description("kintone REST API CLI")
-  .version("0.4.0")
+  .version("0.5.0")
   .option(
     "--auth-type <type>",
     "Authentication type: api-token, password, oauth",
