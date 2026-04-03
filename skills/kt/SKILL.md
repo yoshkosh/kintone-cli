@@ -3,15 +3,15 @@ name: kt
 description: "kintone REST API CLI. Use when operating on kintone apps, records, fields, ACLs, spaces, plugins, or files. Supports all CRUD operations, bulk data export via NDJSON streaming, pre-live (preview) settings management, and system administration."
 compatibility: Requires Node.js.
 metadata:
-  author: latica-jp
-  version: "0.5.0"
+  author: yoshkosh
+  version: "0.5.1"
 allowed-tools: Bash(npx:*) Bash(kt:*)
 ---
 
 # kt — kintone REST API CLI
 
-> Run commands with `npx @latica-jp/kintone-cli` (e.g. `npx @latica-jp/kintone-cli record get --app 1 --id 1`).
-> All examples below use `kt` as shorthand — replace with `npx @latica-jp/kintone-cli` if `kt` is not on PATH.
+> Run commands with `npx @yoshkosh/kintone-cli` (e.g. `npx @yoshkosh/kintone-cli record get --app 1 --id 1`).
+> All examples below use `kt` as shorthand — replace with `npx @yoshkosh/kintone-cli` if `kt` is not on PATH.
 
 ## Authentication
 

@@ -36,13 +36,13 @@ kintone REST APIをラップしたCLIツール。
 
 ## パッケージ・コマンド名
 
-- パッケージ名: `kintone-cli`
+- パッケージ名: `@yoshkosh/kintone-cli`
 - コマンド名: `kintone-cli`（正式）、`kt`（短縮）
 - 両方使用可能
 
 ```json
 {
-  "name": "kintone-cli",
+  "name": "@yoshkosh/kintone-cli",
   "bin": {
     "kintone-cli": "./dist/index.js",
     "kt": "./dist/index.js"
@@ -250,4 +250,3 @@ AIエージェント向けの利用ガイドとしてSKILL.mdをリポジトリ�
 
 - 出力フォーマットオプション（`--format table` 等）の要否
 - SKILL.mdの配布方法
-
