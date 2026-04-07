@@ -1,4 +1,4 @@
-# kintone-cli 設計ドキュメント
+# kintone-cli 仕様書
 
 ## 概要
 
@@ -18,27 +18,16 @@ kintone REST APIをラップしたCLIツール。
 
 - **予測可能性**: コマンド体系をkintone REST APIのパス構造に準拠させる
 - **生ペイロード入力**: `--json` でAPIリクエストボディをそのまま渡せる
-- **スキーマ自己検査**: `--describe` でコマンドのパラメータスキーマを出力
+- **スキーマ自己検査**: `--describe` でコマンドのパラメータスキーマを出力（未実装）
 - **安全機構**: 書き込み系コマンドに `--dry-run` を実装
 - **出力はJSON**: デフォルトでJSONを出力（マシンリーダブル）
 - **SKILL.md同梱**: AIエージェント向けの利用ガイドをパッケージに含める
-
-## OpenAPI Specの活用
-
-公式OpenAPI Spec: https://github.com/kintone/rest-api-spec
-
-コマンドの実装は**静的**（エンドポイントごとにコードを記述）とする。OpenAPI Specは以下の用途でランタイムに同梱・活用する:
-
-- `--json` ペイロードのバリデーション（API呼び出し前の検証）
-- `--describe` によるスキーマ自己検査の出力元
-- テスト生成の素材
-- spec更新時の差分検出（保守）
 
 ## パッケージ・コマンド名
 
 - パッケージ名: `@yoshkosh/kintone-cli`
 - コマンド名: `kintone-cli`（正式）、`kt`（短縮）
-- 両方使用可能
+- 両方使用可能。SKILL.mdでは `kt` を正規名として案内する
 
 ```json
 {
@@ -49,8 +38,6 @@ kintone REST APIをラップしたCLIツール。
   }
 }
 ```
-
-SKILL.mdでは `kt` を正規名として案内する。
 
 ## コマンド体系
 
@@ -93,6 +80,16 @@ kt record get --app 1 --guest-space-id 5
 # → GET /k/guest/5/v1/record
 ```
 
+システムレベルの操作（`plugin`, `plugins`, `bulk-request`, `guests`, `statistics`）は guest space 非対応。`--guest-space-id` 付きで呼び出された場合はCLI側で即座にエラーを返す。
+
+### 通知系APIのコマンド名
+
+パス中のスラッシュ（`notifications/general` 等）はハイフンで結合してフラット化する。
+
+```
+GET /k/v1/app/notifications/general → kt app notifications-general get
+```
+
 ### 入力方式
 
 `--json` で生APIペイロードを優先。頻用APIには便利フラグも併用可。
@@ -115,7 +112,7 @@ kt record get --app 1 --id 10
 
 ### 指定方法
 
-環境変数 + コマンドラインフラグ。初期リリースでは設定ファイル不要。
+環境変数 + コマンドラインフラグ。設定ファイルは不要。
 
 ```bash
 # 共通（必須）
@@ -197,56 +194,54 @@ kt records get --app 1 --page-all | jq 'select(.ステータス.value == "完了
 kt records get --app 1 --page-all > records.jsonl
 ```
 
+## OpenAPI Specの活用
+
+公式OpenAPI Spec: https://github.com/kintone/rest-api-spec
+
+コマンドの実装は**静的**（エンドポイントごとにコードを記述）とする。OpenAPI Specは以下の用途でランタイムに同梱・活用する（一部未実装）:
+
+- `--json` ペイロードのバリデーション（API呼び出し前の検証）
+- `--describe` によるスキーマ自己検査の出力元
+- テスト生成の素材
+- spec更新時の差分検出（保守）
+
 ## 技術スタック
 
-- TypeScript
+- TypeScript（ESM）
 - CLIフレームワーク: Commander.js
-- コードはコーディングエージェントが記述
+- ランタイム: Node.js
 
-## 実装フェーズ
+## ファイル構成
 
-### Phase 1: 設計検証
-
-全APIパターンを網羅する最小セットを実装し、設計の妥当性を検証する。問題がなければ残りを一気に実装する。
-
-| パターン | コマンド |
-|---------|---------|
-| GET（単一） | `record get` |
-| GET（複数） | `records get` |
-| POST（作成） | `record add` |
-| PUT（更新） | `record update` |
-| DELETE | `records delete` |
-| preview系 | `preview app deploy add` / `preview app deploy get` |
-| 設定変更系 | `preview app form-fields add` / `update` / `delete` |
-| ファイル系（multipart） | `file` |
-
-### Phase 2: `--page-all` / NDJSONストリーム出力
-
-`records get` に `--page-all` オプションを追加。cursor APIを使用し、全件をNDJSON形式でストリーム出力する。ストリーム出力という新しいパターンの設計検証を行う。
-
-### Phase 3: 全API実装
-
-Phase 1〜2の設計検証後、残りの全APIを実装する。6バッチに分けて実装:
-
-1. スペース・ゲスト関連API（space, thread, template, guests）
-2. レコードステータス・担当者API（record status, assignees, acl-evaluate）
-3. Preview Appコア機能（preview app add, settings, form-layout）
-4. アプリ設定API群（views, customize, reports, status, actions, admin-notes, notifications×3 — テーブル駆動で一括実装）
-5. アプリプラグイン・移動（app plugins, preview app plugins, app move）
-6. システム管理API（plugin, plugins, bulk-request, statistics）
+```
+src/
+  index.ts              エントリーポイント
+  auth.ts               認証モジュール
+  client.ts             HTTPクライアント
+  commands/
+    shared.ts           共通ヘルパー
+    record.ts           record/records コマンド
+    comment.ts          record comment/comments コマンド
+    status.ts           record status/assignees, records acl-evaluate コマンド
+    preview.ts          preview app deploy/form-fields/add/settings/form-layout コマンド
+    app.ts              app/apps コマンド
+    acl.ts              ACL コマンド（live + preview）
+    app-settings.ts     アプリ設定9種（テーブル駆動、live GET + preview GET/PUT）
+    app-plugins.ts      アプリプラグイン + app move コマンド
+    space.ts            space/thread/template/guests コマンド
+    plugin.ts           システムプラグイン管理コマンド
+    bulk-request.ts     バルクリクエストコマンド
+    statistics.ts       統計APIコマンド
+    file.ts             file get/add コマンド
+skills/
+  kt/SKILL.md           AIエージェント向け利用ガイド（Agent Skills仕様準拠）
+```
 
 ## SKILL.md
 
-AIエージェント向けの利用ガイドとしてSKILL.mdをリポジトリに同梱する。内容は実装後に作成。配布方法（`npx skills add` 対応、CLAUDE.mdへの記載等）は後日決定。
+AIエージェント向けの利用ガイドとして `skills/kt/SKILL.md` をリポジトリに同梱する。Agent Skills仕様（https://agentskills.io/specification）に準拠。
 
-含めるべき項目：
+- `npx skills add <path> -g -a claude-code -y` でClaude Codeのスキルとして登録
+- `/kt` で呼び出し可能
+- コマンド一覧、認証設定、利用ルール、使用例を記載
 
-- 基本的な使い方とコマンド例
-- 認証の設定方法
-- エージェント向けのルール（`--dry-run`の使用、`--fields`での絞り込み等）
-- よく使うパターン
-
-## 未決事項
-
-- 出力フォーマットオプション（`--format table` 等）の要否
-- SKILL.mdの配布方法
