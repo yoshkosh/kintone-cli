@@ -6,6 +6,59 @@ const GET_FIXTURE = { record: { name: { value: "test" } } };
 const GET_EXPECTED_STDOUT = JSON.stringify(GET_FIXTURE, undefined, 2) + "\n";
 const BASE_URL = "https://example.cybozu.com";
 
+type MockPool = ReturnType<MockAgent["get"]>;
+
+/**
+ * `records get --page-all` が叩く cursor API の 3 段呼び出し
+ * (POST 作成 → GET ページ ×N → DELETE クリーンアップ) をまとめて配線する。
+ * 戻り値は `pages` を平坦化した NDJSON (record 毎に JSON + "\n")。
+ */
+const mockCursorSequence = (config: {
+  pool: MockPool;
+  app: number;
+  cursorId: string;
+  pages: unknown[][];
+  authHeader: Record<string, string>;
+}): string => {
+  const { pool, app, cursorId, pages, authHeader } = config;
+  const totalCount = pages.reduce((acc, p) => acc + p.length, 0);
+
+  pool
+    .intercept({
+      path: "/k/v1/records/cursor.json",
+      method: "POST",
+      body: JSON.stringify({ app, size: 500 }),
+      headers: { ...authHeader, "Content-Type": "application/json" },
+    })
+    .reply(200, { id: cursorId, totalCount });
+
+  pages.forEach((records, i) => {
+    const isLast = i === pages.length - 1;
+    pool
+      .intercept({
+        path: "/k/v1/records/cursor.json",
+        method: "GET",
+        query: { id: cursorId },
+        headers: authHeader,
+      })
+      .reply(200, { records, next: !isLast });
+  });
+
+  pool
+    .intercept({
+      path: "/k/v1/records/cursor.json",
+      method: "DELETE",
+      query: { id: cursorId },
+      headers: authHeader,
+    })
+    .reply(200, {});
+
+  return pages
+    .flat()
+    .map((r) => JSON.stringify(r) + "\n")
+    .join("");
+};
+
 const KINTONE_ENV_KEYS = [
   "KINTONE_BASE_URL",
   "KINTONE_API_TOKEN",
@@ -571,6 +624,66 @@ describe("cli integration", () => {
       expect(code).toBe(0);
       mockAgent.assertNoPendingInterceptors();
       expect(readStdout()).toBe(JSON.stringify(response, undefined, 2) + "\n");
+    });
+
+    it("--page-all: single-page cursor emits NDJSON", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = mockAgent.get(BASE_URL);
+      const records = [
+        { id: { value: "1" }, name: { value: "Alice" } },
+        { id: { value: "2" }, name: { value: "Bob" } },
+      ];
+      const expectedStdout = mockCursorSequence({
+        pool,
+        app: 1,
+        cursorId: "cursor-single",
+        pages: [records],
+        authHeader: { "X-Cybozu-API-Token": "test-token" },
+      });
+
+      const code = await main([
+        "node",
+        "kt",
+        "records",
+        "get",
+        "--app",
+        "1",
+        "--page-all",
+      ]);
+
+      expect(readStderr()).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStdout()).toBe(expectedStdout);
+    });
+
+    it("--page-all: multi-page cursor paginates and emits NDJSON in order", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = mockAgent.get(BASE_URL);
+      const page1 = [{ id: { value: "1" } }, { id: { value: "2" } }];
+      const page2 = [{ id: { value: "3" } }];
+      const expectedStdout = mockCursorSequence({
+        pool,
+        app: 1,
+        cursorId: "cursor-multi",
+        pages: [page1, page2],
+        authHeader: { "X-Cybozu-API-Token": "test-token" },
+      });
+
+      const code = await main([
+        "node",
+        "kt",
+        "records",
+        "get",
+        "--app",
+        "1",
+        "--page-all",
+      ]);
+
+      expect(readStderr()).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStdout()).toBe(expectedStdout);
     });
   });
 });
