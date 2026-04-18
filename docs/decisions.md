@@ -145,3 +145,77 @@
 **理由**: GitHubユーザー名を `latica-jp` → `yoshkosh` に変更したことに伴う。GitHub Package Registryはスコープ付きパッケージ名がユーザー/org名と一致する必要がある。
 
 **補足**: npmjs.orgの `kintone-cli`（アンスコープ）は未登録だが、kintone公式の過去ツール（kintone-labs/kintone-cli、アーカイブ済み）との混同を避けるためスコープ付きを維持。
+
+---
+
+## 2026-04-16 テスト方針: HTTP モック中心 + 手動スモーク
+
+**決定**: Tier 1 (HTTP モック中心の自動テスト) をメインに置き、Tier 2 (実 API の手動スモーク) を補完として扱う。Tier 2 は **リリース前にローカル手動実行** とし、夜間 CI は採用しない。
+
+**理由**: 本 CLI は引数 → URL/ヘッダ/ボディ構築の薄い変換層で、リクエスト構築の正しさはモックで完全検証可能。kintone 側の実挙動検証まで自動化すると setup/teardown コスト・テストアプリ管理の ROI が悪い。Tier 2 を CI 化すると既存の環境変数管理（2026-03-24 direnv + Keychain）と衝突するため、手動運用に留める。
+
+**不採用案**:
+- 全コマンドの E2E 自動化: ROI が悪く、テストアプリ状態管理の負担が大きい
+- 夜間 CI による Tier 2 自動化: Secrets 運用が既存方針と不整合
+- モックのみ: multipart / cursor / 429 等、spec と実 API の乖離検知には実呼び出しが必要
+
+**参考**: `docs/phase4-test-strategy.md` v3 §1, §2
+
+---
+
+## 2026-04-16 テストスタック: vitest + undici MockAgent (stubGlobal 併用)
+
+**決定**: テストランナーは `vitest`、fetch モックは `undici` の `MockAgent` を採用。各テストで `vi.stubGlobal('fetch', undici.fetch)` により global fetch を userland undici に差し替えてから `setGlobalDispatcher(mockAgent)` を有効化する。CLI はインプロセス方式で起動する (`createProgram()` + `main(argv)` に構造分離、`exitOverride()` で exit code を戻り値化)。
+
+**理由**: vitest は ESM/TS ネイティブで harness 導入コストが低い。`MockAgent` は Node 標準 fetch を declarative にインターセプトでき、ボイラープレート最小。Node 22 のビルトイン fetch は **Node 同梱の undici** を使うため、devDep としてインストールした userland undici の `setGlobalDispatcher` 単独では intercept できない。`vi.stubGlobal` で userland undici に橋渡しすることで `MockAgent` が機能する (`feat/phase4-slice` 試作で検証済)。
+
+**不採用案**:
+- `node:test` + 自前 fetch mock: ergonomics が弱く ROI 悪
+- `nock` / `msw`: fetch ネイティブの MockAgent が最小フィット
+- MockAgent 単独 (`stubGlobal` なし): Node 22 では intercept されず実ネットワークに漏れる
+- サブプロセス起動方式: インプロセスより 1 桁遅く、デバッガが刺さらない
+
+**参考**: `docs/phase4-test-strategy.md` v3 §3, §4, `docs/phase4-slice-findings.md` H1〜H5
+
+---
+
+## 2026-04-16 テストファイル配置: コロケーション
+
+**決定**: テストファイルは `src/**/*.test.ts` としてプロダクションコードと同じディレクトリに配置する。ビルド出力には含めないため `tsconfig.json` の `exclude` に `src/**/*.test.ts` を追加する。
+
+**理由**: import path が短く (`./client.js` 等)、vitest のデフォルト glob にそのまま乗り、プロダクションコードとテストの対応関係が目視で追いやすい。Node エコシステムの慣例でもある。
+
+**不採用案**: `test/` ディレクトリ集約。import が `../src/client.js` になるか path alias の追加が必要で、小規模 CLI では得るものが少ない。
+
+**参考**: `docs/phase4-test-strategy.md` v3 §4
+
+---
+
+## 2026-04-16 API エラーテスト: 公式仕様準拠の Layer A のみ採用
+
+**決定**: エラーテストは kintone 公式仕様 (`{id, code, message}` の 3 フィールド、cybozu developer network 定義) 準拠のモックで、「HTTP 非 200 → `main()` が 1 を返し stderr に出力」の**配線健全性**のみを Phase 4.1 で検証する。`err.code` の具体値アサーション、`errors` フィールド、bulkRequest 部分失敗等の**構造化アサーションは Layer B として保留**する。HTTP ステータス別の挙動差 (401 vs 403 vs 404) も公式未定義のため保留。
+
+**理由**: 公式 OpenAPI Spec はエラーレスポンスを定義していない (正常系 `"200"` のみ)。公式ドキュメントが明文化しているのは上記 3 フィールドだけで、`errors` や code 体系は JS SDK (`@kintone/rest-api-client`) が事実上の二次リファレンス。現状の `src/client.ts` の `KintoneAPIError` は raw body を `message` に入れるだけの最小実装のため、構造化アサートの対象となるプロパティが存在しない。`KintoneAPIError` を JS SDK 相当に構造化するかは別設計判断として分離する。
+
+**不採用案**:
+- エラーテスト全廃: `main()` の exit code 1 経路と `finally` クリーンアップ経路が未検証になる
+- 構造化アサーションを即採用: `KintoneAPIError` の構造化設計とセットで議論すべきで、テストだけ先行すると仕様外の決め打ちになる
+
+**参考**: `docs/phase4-test-strategy.md` v3 §4(c), https://cybozu.dev/ja/kintone/docs/rest-api/overview/kintone-rest-api-overview/
+
+---
+
+## 2026-04-16 OpenAPI Spec 活用: リクエスト・コントラクト検証のみ採用
+
+**決定**: Phase 4.2 で OpenAPI Spec ベースの**リクエスト**コントラクト検証 ((1) 案、`ajv` 使用) を導入する。レスポンス fixture vs spec 検証 (1.5)、mock 自動生成 (2)、カバレッジ検知 (3)、`--json` バリデーション (4) は保留 / 後続。`ajv` と YAML パーサは **dev 依存** として入れ、`--json` バリデーション機能が実装された時点で `ajv` を runtime に昇格させる。
+
+**理由**: (1) は自コードのリクエスト構築ミスを検知するのに直結する。(1.5) は spec drift 時にテストがノイズで不安定化するリスクが、自コードのバグ発見への寄与を上回る。(2) はレスポンス形状が spec 通りかは kintone 側の責任領域で、mock に使っても自分のバグは出ない。(4) は `--json` バリデーション機能自体が未実装で、先行して runtime 依存を増やすのは npm 配布物を重くするだけ。
+
+**前提**: Phase 4.2 着手前に 30 分実証で spec 厳密度 (`additionalProperties: true` の多用等で検証が実質ザルにならないか) を主要 3 エンドポイント (`record/get`, `records/get`, `record/post`) で確認する。spec が緩すぎれば (1) の投資判断自体を見直す。
+
+**不採用案**:
+- `ajv` を runtime 依存として前倒し投入: `--json` バリデーション未実装の間は npm 配布物に無駄な依存を載せる
+- `@stoplight/prism` などの完全 mock サーバ採用: in-test 用途で過剰
+- spec 取り込みを non-bundled で行う: external `$ref` 解決ロジックが複雑化するため bundled 版を前提とする
+
+**参考**: `docs/phase4-test-strategy.md` v3 §5, §6, §7
