@@ -227,4 +227,179 @@ describe("cli integration", () => {
       expect(readStdout()).toBe(expected);
     });
   });
+
+  describe("record update", () => {
+    const UPDATE_JSON =
+      '{"app":1,"id":1,"record":{"name":{"value":"NewName"}}}';
+    const UPDATE_RESPONSE = { revision: "2" };
+
+    it("PUT body: serializes --json and sends application/json", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = mockAgent.get(BASE_URL);
+      pool
+        .intercept({
+          path: "/k/v1/record.json",
+          method: "PUT",
+          body: UPDATE_JSON,
+          headers: {
+            "X-Cybozu-API-Token": "test-token",
+            "Content-Type": "application/json",
+          },
+        })
+        .reply(200, UPDATE_RESPONSE);
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "update",
+        "--json",
+        UPDATE_JSON,
+      ]);
+
+      const stderr = readStderr();
+      expect(stderr, `stderr: ${stderr}`).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStdout()).toBe(
+        JSON.stringify(UPDATE_RESPONSE, undefined, 2) + "\n",
+      );
+    });
+
+    it("--dry-run: no HTTP fire, outputs dry-run JSON", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "update",
+        "--json",
+        UPDATE_JSON,
+        "--dry-run",
+      ]);
+
+      expect(readStderr()).toBe("");
+      expect(code).toBe(0);
+      const expected =
+        JSON.stringify(
+          {
+            dryRun: true,
+            method: "PUT",
+            path: "/k/v1/record.json",
+            body: JSON.parse(UPDATE_JSON),
+          },
+          undefined,
+          2,
+        ) + "\n";
+      expect(readStdout()).toBe(expected);
+    });
+  });
+
+  describe("records delete", () => {
+    // DELETE /k/v1/records.json uses query-string encoded array params
+    // (not a body). Exercises appendQueryParams' array encoding.
+    const DELETE_JSON = '{"app":1,"ids":[1,2]}';
+
+    it("DELETE: sends params as query string with array encoding", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = mockAgent.get(BASE_URL);
+      pool
+        .intercept({
+          path: "/k/v1/records.json",
+          method: "DELETE",
+          query: {
+            app: "1",
+            "ids[0]": "1",
+            "ids[1]": "2",
+          },
+          headers: { "X-Cybozu-API-Token": "test-token" },
+        })
+        .reply(200, {});
+
+      const code = await main([
+        "node",
+        "kt",
+        "records",
+        "delete",
+        "--json",
+        DELETE_JSON,
+      ]);
+
+      const stderr = readStderr();
+      expect(stderr, `stderr: ${stderr}`).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStdout()).toBe("{}\n");
+    });
+
+    it("--dry-run: no HTTP fire, outputs dry-run JSON with params", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+
+      const code = await main([
+        "node",
+        "kt",
+        "records",
+        "delete",
+        "--json",
+        DELETE_JSON,
+        "--dry-run",
+      ]);
+
+      expect(readStderr()).toBe("");
+      expect(code).toBe(0);
+      const expected =
+        JSON.stringify(
+          {
+            dryRun: true,
+            method: "DELETE",
+            path: "/k/v1/records.json",
+            params: JSON.parse(DELETE_JSON),
+          },
+          undefined,
+          2,
+        ) + "\n";
+      expect(readStdout()).toBe(expected);
+    });
+  });
+
+  describe("records get", () => {
+    it("--fields: encodes comma list as fields[0]=...&fields[1]=...", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = mockAgent.get(BASE_URL);
+      const response = {
+        records: [{ id: { value: "1" } }],
+        totalCount: null,
+      };
+      pool
+        .intercept({
+          path: "/k/v1/records.json",
+          method: "GET",
+          query: {
+            app: "1",
+            "fields[0]": "name",
+            "fields[1]": "status",
+          },
+          headers: { "X-Cybozu-API-Token": "test-token" },
+        })
+        .reply(200, response);
+
+      const code = await main([
+        "node",
+        "kt",
+        "records",
+        "get",
+        "--app",
+        "1",
+        "--fields",
+        "name,status",
+      ]);
+
+      const stderr = readStderr();
+      expect(stderr, `stderr: ${stderr}`).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStdout()).toBe(JSON.stringify(response, undefined, 2) + "\n");
+    });
+  });
 });
