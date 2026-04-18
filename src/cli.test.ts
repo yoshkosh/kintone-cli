@@ -585,6 +585,31 @@ describe("cli integration", () => {
         .join("\n");
       expect(warnings).toContain("Multiple auth methods detected");
     });
+
+    it("--auth-type oauth → exit 1 with 'not yet implemented' message", async () => {
+      // OAuth env vars present so resolveAuth finds the method,
+      // but buildAuthHeaders throws because OAuth is unimplemented.
+      vi.stubEnv("KINTONE_OAUTH_CLIENT_ID", "CHANGEME");
+      vi.stubEnv("KINTONE_OAUTH_CLIENT_SECRET", "CHANGEME");
+      vi.stubEnv("KINTONE_OAUTH_REFRESH_TOKEN", "CHANGEME");
+
+      const code = await main([
+        "node",
+        "kt",
+        "--auth-type",
+        "oauth",
+        "record",
+        "get",
+        "--app",
+        "1",
+        "--id",
+        "1",
+      ]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      expect(readStderr()).toContain("OAuth is not yet implemented");
+    });
   });
 
   describe("records get", () => {
@@ -684,6 +709,96 @@ describe("cli integration", () => {
       expect(code).toBe(0);
       mockAgent.assertNoPendingInterceptors();
       expect(readStdout()).toBe(expectedStdout);
+    });
+  });
+
+  describe("records add", () => {
+    it("POST /k/v1/records.json with body", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = mockAgent.get(BASE_URL);
+      const INPUT_JSON = '{"app":1,"records":[{"name":{"value":"Alice"}}]}';
+      const RESPONSE = { ids: ["100"], revisions: ["1"] };
+      pool
+        .intercept({
+          path: "/k/v1/records.json",
+          method: "POST",
+          body: INPUT_JSON,
+          headers: {
+            "X-Cybozu-API-Token": "test-token",
+            "Content-Type": "application/json",
+          },
+        })
+        .reply(200, RESPONSE);
+
+      const code = await main([
+        "node",
+        "kt",
+        "records",
+        "add",
+        "--json",
+        INPUT_JSON,
+      ]);
+
+      expect(readStderr()).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStdout()).toBe(JSON.stringify(RESPONSE, undefined, 2) + "\n");
+    });
+  });
+
+  describe("records update", () => {
+    it("PUT /k/v1/records.json with body", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = mockAgent.get(BASE_URL);
+      const INPUT_JSON =
+        '{"app":1,"records":[{"id":1,"record":{"name":{"value":"Updated"}}}]}';
+      const RESPONSE = { records: [{ id: "1", revision: "2" }] };
+      pool
+        .intercept({
+          path: "/k/v1/records.json",
+          method: "PUT",
+          body: INPUT_JSON,
+          headers: {
+            "X-Cybozu-API-Token": "test-token",
+            "Content-Type": "application/json",
+          },
+        })
+        .reply(200, RESPONSE);
+
+      const code = await main([
+        "node",
+        "kt",
+        "records",
+        "update",
+        "--json",
+        INPUT_JSON,
+      ]);
+
+      expect(readStderr()).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStdout()).toBe(JSON.stringify(RESPONSE, undefined, 2) + "\n");
+    });
+  });
+
+  describe("noGuestSpace guard", () => {
+    it("plugins get --guest-space-id → exit 1 'not supported' message", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      // No interceptor registered. The guard throws before any fetch call.
+
+      const code = await main([
+        "node",
+        "kt",
+        "--guest-space-id",
+        "5",
+        "plugins",
+        "get",
+      ]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      expect(readStderr()).toContain("--guest-space-id is not supported");
+      expect(readStderr()).toContain("plugins get");
     });
   });
 });
