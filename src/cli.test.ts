@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetch as undiciFetch, MockAgent, setGlobalDispatcher } from "undici";
 import { main } from "./cli.js";
 
-const FIXTURE = { record: { name: { value: "test" } } };
-const EXPECTED_STDOUT = JSON.stringify(FIXTURE, undefined, 2) + "\n";
+const GET_FIXTURE = { record: { name: { value: "test" } } };
+const GET_EXPECTED_STDOUT = JSON.stringify(GET_FIXTURE, undefined, 2) + "\n";
 const BASE_URL = "https://example.cybozu.com";
 
 const KINTONE_ENV_KEYS = [
@@ -16,7 +16,7 @@ const KINTONE_ENV_KEYS = [
   "KINTONE_OAUTH_REFRESH_TOKEN",
 ] as const;
 
-describe("cli integration: record get", () => {
+describe("cli integration", () => {
   let mockAgent: MockAgent;
   let stdoutSpy: ReturnType<typeof vi.spyOn>;
   let stderrSpy: ReturnType<typeof vi.spyOn>;
@@ -37,7 +37,6 @@ describe("cli integration: record get", () => {
       .spyOn(process.stderr, "write")
       .mockImplementation(() => true);
 
-    // Clear every auth env var so each case starts from a known baseline.
     for (const key of KINTONE_ENV_KEYS) {
       vi.stubEnv(key, "");
     }
@@ -51,66 +50,181 @@ describe("cli integration: record get", () => {
     await mockAgent.close();
   });
 
-  it("case A: hits /k/v1/record.json with token-a", async () => {
-    vi.stubEnv("KINTONE_API_TOKEN", "test-token-a");
-    const pool = mockAgent.get(BASE_URL);
-    pool
-      .intercept({
-        path: "/k/v1/record.json",
-        method: "GET",
-        query: { app: "1", id: "1" },
-        headers: { "X-Cybozu-API-Token": "test-token-a" },
-      })
-      .reply(200, FIXTURE);
+  const readStdout = (): string =>
+    stdoutSpy.mock.calls.map((c) => String(c[0])).join("");
+  const readStderr = (): string =>
+    stderrSpy.mock.calls.map((c) => String(c[0])).join("");
 
-    const code = await main([
-      "node",
-      "kt",
-      "record",
-      "get",
-      "--app",
-      "1",
-      "--id",
-      "1",
-    ]);
+  describe("record get", () => {
+    it("case A: hits /k/v1/record.json with token-a", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token-a");
+      const pool = mockAgent.get(BASE_URL);
+      pool
+        .intercept({
+          path: "/k/v1/record.json",
+          method: "GET",
+          query: { app: "1", id: "1" },
+          headers: { "X-Cybozu-API-Token": "test-token-a" },
+        })
+        .reply(200, GET_FIXTURE);
 
-    const stderr = stderrSpy.mock.calls.map((c) => String(c[0])).join("");
-    expect(stderr, `stderr: ${stderr}`).toBe("");
-    expect(code).toBe(0);
-    mockAgent.assertNoPendingInterceptors();
-    const stdout = stdoutSpy.mock.calls.map((c) => String(c[0])).join("");
-    expect(stdout).toBe(EXPECTED_STDOUT);
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "get",
+        "--app",
+        "1",
+        "--id",
+        "1",
+      ]);
+
+      const stderr = readStderr();
+      expect(stderr, `stderr: ${stderr}`).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStdout()).toBe(GET_EXPECTED_STDOUT);
+    });
+
+    it("case B: --guest-space-id rewrites path and uses token-b", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token-b");
+      const pool = mockAgent.get(BASE_URL);
+      pool
+        .intercept({
+          path: "/k/guest/5/v1/record.json",
+          method: "GET",
+          query: { app: "2", id: "2" },
+          headers: { "X-Cybozu-API-Token": "test-token-b" },
+        })
+        .reply(200, GET_FIXTURE);
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "get",
+        "--app",
+        "2",
+        "--id",
+        "2",
+        "--guest-space-id",
+        "5",
+      ]);
+
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStdout()).toBe(GET_EXPECTED_STDOUT);
+      expect(stderrSpy).not.toHaveBeenCalled();
+    });
+
+    it("error Layer A: 403 response → exit 1 + error body on stderr", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = mockAgent.get(BASE_URL);
+      // 公式仕様準拠: {id, code, message} の 3 フィールドのみ
+      const errorBody = {
+        id: "test-error-id",
+        code: "CB_NO02",
+        message: "No privilege to proceed.",
+      };
+      pool
+        .intercept({
+          path: "/k/v1/record.json",
+          method: "GET",
+          query: { app: "1", id: "1" },
+          headers: { "X-Cybozu-API-Token": "test-token" },
+        })
+        .reply(403, errorBody);
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "get",
+        "--app",
+        "1",
+        "--id",
+        "1",
+      ]);
+
+      expect(code).toBe(1);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStdout()).toBe("");
+      const stderr = readStderr();
+      expect(stderr).toContain("CB_NO02");
+      expect(stderr).toContain("No privilege to proceed.");
+    });
   });
 
-  it("case B: --guest-space-id rewrites path and uses token-b", async () => {
-    vi.stubEnv("KINTONE_API_TOKEN", "test-token-b");
-    const pool = mockAgent.get(BASE_URL);
-    pool
-      .intercept({
-        path: "/k/guest/5/v1/record.json",
-        method: "GET",
-        query: { app: "2", id: "2" },
-        headers: { "X-Cybozu-API-Token": "test-token-b" },
-      })
-      .reply(200, FIXTURE);
+  describe("record add", () => {
+    // JSON.stringify(JSON.parse(x)) is identity only for compact canonical JSON.
+    // Using a compact input keeps the intercept body matcher deterministic.
+    const INPUT_JSON = '{"app":1,"record":{"name":{"value":"Alice"}}}';
+    const ADD_RESPONSE = { id: "100", revision: "1" };
 
-    const code = await main([
-      "node",
-      "kt",
-      "record",
-      "get",
-      "--app",
-      "2",
-      "--id",
-      "2",
-      "--guest-space-id",
-      "5",
-    ]);
+    it("POST body: serializes --json, sends application/json, prints response", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = mockAgent.get(BASE_URL);
+      pool
+        .intercept({
+          path: "/k/v1/record.json",
+          method: "POST",
+          body: INPUT_JSON,
+          headers: {
+            "X-Cybozu-API-Token": "test-token",
+            "Content-Type": "application/json",
+          },
+        })
+        .reply(200, ADD_RESPONSE);
 
-    expect(code).toBe(0);
-    mockAgent.assertNoPendingInterceptors();
-    const stdout = stdoutSpy.mock.calls.map((c) => String(c[0])).join("");
-    expect(stdout).toBe(EXPECTED_STDOUT);
-    expect(stderrSpy).not.toHaveBeenCalled();
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "add",
+        "--json",
+        INPUT_JSON,
+      ]);
+
+      const stderr = readStderr();
+      expect(stderr, `stderr: ${stderr}`).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStdout()).toBe(
+        JSON.stringify(ADD_RESPONSE, undefined, 2) + "\n",
+      );
+    });
+
+    it("--dry-run: no HTTP fire, outputs dry-run JSON", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      // Register no interceptors. disableNetConnect() is on, so any fetch
+      // attempt would throw and propagate as exit 1. Passing with code 0
+      // proves that --dry-run short-circuited before fetch.
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "add",
+        "--json",
+        INPUT_JSON,
+        "--dry-run",
+      ]);
+
+      const stderr = readStderr();
+      expect(stderr, `stderr: ${stderr}`).toBe("");
+      expect(code).toBe(0);
+      const expected =
+        JSON.stringify(
+          {
+            dryRun: true,
+            method: "POST",
+            path: "/k/v1/record.json",
+            body: JSON.parse(INPUT_JSON),
+          },
+          undefined,
+          2,
+        ) + "\n";
+      expect(readStdout()).toBe(expected);
+    });
   });
 });
