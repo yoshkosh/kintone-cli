@@ -20,6 +20,7 @@ describe("cli integration", () => {
   let mockAgent: MockAgent;
   let stdoutSpy: ReturnType<typeof vi.spyOn>;
   let stderrSpy: ReturnType<typeof vi.spyOn>;
+  let consoleErrSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     mockAgent = new MockAgent();
@@ -36,6 +37,9 @@ describe("cli integration", () => {
     stderrSpy = vi
       .spyOn(process.stderr, "write")
       .mockImplementation(() => true);
+    // vitest が console をフックしており process.stderr.write とは別経路。
+    // console.error を直接 spy することで resolveAuth の warning を捕捉する。
+    consoleErrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     for (const key of KINTONE_ENV_KEYS) {
       vi.stubEnv(key, "");
@@ -360,6 +364,173 @@ describe("cli integration", () => {
           2,
         ) + "\n";
       expect(readStdout()).toBe(expected);
+    });
+  });
+
+  describe("env errors", () => {
+    it("missing KINTONE_BASE_URL → exit 1 with 'not set' message", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      vi.stubEnv("KINTONE_BASE_URL", ""); // override beforeEach
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "get",
+        "--app",
+        "1",
+        "--id",
+        "1",
+      ]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      expect(readStderr()).toContain("KINTONE_BASE_URL is not set");
+    });
+
+    it("no auth configured → exit 1 with guidance message", async () => {
+      // beforeEach cleared all KINTONE_* auth vars to "".
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "get",
+        "--app",
+        "1",
+        "--id",
+        "1",
+      ]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      expect(readStderr()).toContain("No authentication configured");
+    });
+
+    it("fetch throws (unmatched request) → exit 1", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      // No interceptor registered. disableNetConnect() on MockAgent causes
+      // any non-matched request to throw, simulating a network failure.
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "get",
+        "--app",
+        "1",
+        "--id",
+        "1",
+      ]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      expect(readStderr()).toMatch(/^Error:/);
+    });
+  });
+
+  describe("auth variants", () => {
+    // Test fixtures using CHANGEME (gitleaks-recognized placeholder).
+    const TEST_USER = "CHANGEME";
+    const TEST_PASS = "CHANGEME";
+    const PASSWORD_AUTH_HEADER = Buffer.from(
+      `${TEST_USER}:${TEST_PASS}`,
+    ).toString("base64");
+
+    it("password auth sends X-Cybozu-Authorization (Basic base64)", async () => {
+      vi.stubEnv("KINTONE_USERNAME", TEST_USER);
+      vi.stubEnv("KINTONE_PASSWORD", TEST_PASS);
+      const pool = mockAgent.get(BASE_URL);
+      pool
+        .intercept({
+          path: "/k/v1/record.json",
+          method: "GET",
+          query: { app: "1", id: "1" },
+          headers: { "X-Cybozu-Authorization": PASSWORD_AUTH_HEADER },
+        })
+        .reply(200, GET_FIXTURE);
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "get",
+        "--app",
+        "1",
+        "--id",
+        "1",
+      ]);
+
+      expect(readStderr()).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+    });
+
+    it("--auth-type explicit selects one method without warning", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "token-value");
+      vi.stubEnv("KINTONE_USERNAME", TEST_USER);
+      vi.stubEnv("KINTONE_PASSWORD", TEST_PASS);
+      const pool = mockAgent.get(BASE_URL);
+      pool
+        .intercept({
+          path: "/k/v1/record.json",
+          method: "GET",
+          query: { app: "1", id: "1" },
+          headers: { "X-Cybozu-Authorization": PASSWORD_AUTH_HEADER },
+        })
+        .reply(200, GET_FIXTURE);
+
+      const code = await main([
+        "node",
+        "kt",
+        "--auth-type",
+        "password",
+        "record",
+        "get",
+        "--app",
+        "1",
+        "--id",
+        "1",
+      ]);
+
+      expect(code).toBe(0);
+      // explicit --auth-type suppresses the multi-detect warning
+      expect(readStderr()).toBe("");
+      mockAgent.assertNoPendingInterceptors();
+    });
+
+    it("multi-detect without --auth-type emits warning to stderr", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "token-value");
+      vi.stubEnv("KINTONE_USERNAME", TEST_USER);
+      vi.stubEnv("KINTONE_PASSWORD", TEST_PASS);
+      const pool = mockAgent.get(BASE_URL);
+      pool
+        .intercept({
+          path: "/k/v1/record.json",
+          method: "GET",
+          query: { app: "1", id: "1" },
+          // api-token is first in detectAuthMethods order, so it wins
+          headers: { "X-Cybozu-API-Token": "token-value" },
+        })
+        .reply(200, GET_FIXTURE);
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "get",
+        "--app",
+        "1",
+        "--id",
+        "1",
+      ]);
+
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      const warnings = consoleErrSpy.mock.calls
+        .map((c) => c.map(String).join(" "))
+        .join("\n");
+      expect(warnings).toContain("Multiple auth methods detected");
     });
   });
 
