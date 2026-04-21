@@ -1,0 +1,13 @@
+# Upstream kintone OpenAPI Spec (third_party/rest-api-spec/openapi.yaml)
+# vendored at version 20250423000000. gitleaks false positives on legitimate
+# documentation text ("password:" schema field, "guest space users" prose).
+# Not our content to edit; allowlist specific fingerprints instead of skipping
+# the whole file, so new findings in future spec updates still surface.
+third_party/rest-api-spec/openapi.yaml:yaml-secrets:23287
+third_party/rest-api-spec/openapi.yaml:generic-username:13437
+third_party/rest-api-spec/openapi.yaml:generic-username:22129
+third_party/rest-api-spec/openapi.yaml:generic-username:23460
+third_party/rest-api-spec/openapi.yaml:generic-username:39908
+third_party/rest-api-spec/openapi.yaml:generic-username:40524
+third_party/rest-api-spec/openapi.yaml:generic-username:41716
+third_party/rest-api-spec/openapi.yaml:generic-username:41860
