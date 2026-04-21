@@ -1,12 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetch as undiciFetch, MockAgent, setGlobalDispatcher } from "undici";
 import { main } from "./cli.js";
+import { assertRequestMatchesSpec } from "./__test-helpers__/spec-validator.js";
 
 const GET_FIXTURE = { record: { name: { value: "test" } } };
 const GET_EXPECTED_STDOUT = JSON.stringify(GET_FIXTURE, undefined, 2) + "\n";
 const BASE_URL = "https://example.cybozu.com";
 
 type MockPool = ReturnType<MockAgent["get"]>;
+
+// Wraps MockAgent.get() so every pool.intercept(...) call is first validated
+// against the kintone OpenAPI Spec. Catches typos in test expectations
+// (wrong path, missing required query param, unknown extra field) before
+// they slip through as green tests.
+const createValidatedPool = (agent: MockAgent, origin: string): MockPool => {
+  const pool = agent.get(origin);
+  const orig = pool.intercept.bind(pool);
+  pool.intercept = ((match: Parameters<MockPool["intercept"]>[0]) => {
+    assertRequestMatchesSpec(
+      match as Parameters<typeof assertRequestMatchesSpec>[0],
+    );
+    return orig(match);
+  }) as MockPool["intercept"];
+  return pool;
+};
 
 /**
  * `records get --page-all` が叩く cursor API の 3 段呼び出し
@@ -115,7 +132,7 @@ describe("cli integration", () => {
   describe("record get", () => {
     it("case A: hits /k/v1/record.json with token-a", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token-a");
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       pool
         .intercept({
           path: "/k/v1/record.json",
@@ -145,7 +162,7 @@ describe("cli integration", () => {
 
     it("case B: --guest-space-id rewrites path and uses token-b", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token-b");
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       pool
         .intercept({
           path: "/k/guest/5/v1/record.json",
@@ -176,7 +193,7 @@ describe("cli integration", () => {
 
     it("error Layer A: 403 response → exit 1 + error body on stderr", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       // 公式仕様準拠: {id, code, message} の 3 フィールドのみ
       const errorBody = {
         id: "test-error-id",
@@ -220,7 +237,7 @@ describe("cli integration", () => {
 
     it("POST body: serializes --json, sends application/json, prints response", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       pool
         .intercept({
           path: "/k/v1/record.json",
@@ -292,7 +309,7 @@ describe("cli integration", () => {
 
     it("PUT body: serializes --json and sends application/json", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       pool
         .intercept({
           path: "/k/v1/record.json",
@@ -360,7 +377,7 @@ describe("cli integration", () => {
 
     it("DELETE: sends params as query string with array encoding", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       pool
         .intercept({
           path: "/k/v1/records.json",
@@ -493,7 +510,7 @@ describe("cli integration", () => {
     it("password auth sends X-Cybozu-Authorization (Basic base64)", async () => {
       vi.stubEnv("KINTONE_USERNAME", TEST_USER);
       vi.stubEnv("KINTONE_PASSWORD", TEST_PASS);
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       pool
         .intercept({
           path: "/k/v1/record.json",
@@ -523,7 +540,7 @@ describe("cli integration", () => {
       vi.stubEnv("KINTONE_API_TOKEN", "token-value");
       vi.stubEnv("KINTONE_USERNAME", TEST_USER);
       vi.stubEnv("KINTONE_PASSWORD", TEST_PASS);
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       pool
         .intercept({
           path: "/k/v1/record.json",
@@ -556,7 +573,7 @@ describe("cli integration", () => {
       vi.stubEnv("KINTONE_API_TOKEN", "token-value");
       vi.stubEnv("KINTONE_USERNAME", TEST_USER);
       vi.stubEnv("KINTONE_PASSWORD", TEST_PASS);
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       pool
         .intercept({
           path: "/k/v1/record.json",
@@ -615,7 +632,7 @@ describe("cli integration", () => {
   describe("records get", () => {
     it("--fields: encodes comma list as fields[0]=...&fields[1]=...", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       const response = {
         records: [{ id: { value: "1" } }],
         totalCount: null,
@@ -653,7 +670,7 @@ describe("cli integration", () => {
 
     it("--page-all: single-page cursor emits NDJSON", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       const records = [
         { id: { value: "1" }, name: { value: "Alice" } },
         { id: { value: "2" }, name: { value: "Bob" } },
@@ -684,7 +701,7 @@ describe("cli integration", () => {
 
     it("--page-all: multi-page cursor paginates and emits NDJSON in order", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       const page1 = [{ id: { value: "1" } }, { id: { value: "2" } }];
       const page2 = [{ id: { value: "3" } }];
       const expectedStdout = mockCursorSequence({
@@ -715,7 +732,7 @@ describe("cli integration", () => {
   describe("records add", () => {
     it("POST /k/v1/records.json with body", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       const INPUT_JSON = '{"app":1,"records":[{"name":{"value":"Alice"}}]}';
       const RESPONSE = { ids: ["100"], revisions: ["1"] };
       pool
@@ -749,7 +766,7 @@ describe("cli integration", () => {
   describe("records update", () => {
     it("PUT /k/v1/records.json with body", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
-      const pool = mockAgent.get(BASE_URL);
+      const pool = createValidatedPool(mockAgent, BASE_URL);
       const INPUT_JSON =
         '{"app":1,"records":[{"id":1,"record":{"name":{"value":"Updated"}}}]}';
       const RESPONSE = { records: [{ id: "1", revision: "2" }] };
