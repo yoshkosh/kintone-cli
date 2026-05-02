@@ -1,6 +1,12 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
-import { getGlobalOptions, noGuestSpace, writeJson } from "./shared.js";
+import { attachEndpoint } from "../schema-option.js";
+import {
+  getGlobalOptions,
+  noGuestSpace,
+  writeJson,
+  requireOpts,
+} from "./shared.js";
 
 export const registerStatisticsCommands = ({
   program,
@@ -13,13 +19,14 @@ export const registerStatisticsCommands = ({
     const appsStats = apps.command("statistics").description("Apps statistics");
 
     // GET /k/v1/apps/statistics.json
-    appsStats
+    const appsStatsGet = appsStats
       .command("get")
       .description("Get app statistics")
-      .requiredOption("--ids <ids>", "Comma-separated App IDs")
+      .option("--ids <ids>", "Comma-separated App IDs")
       .action(async (opts, cmd) => {
+        requireOpts(opts, ["ids"]);
         const global = getGlobalOptions(cmd);
-        noGuestSpace(global, "apps statistics get");
+        noGuestSpace(global, "apps statistics get", opts);
         const ids = opts.ids.split(",");
 
         const result = await kintoneRequest({
@@ -30,6 +37,10 @@ export const registerStatisticsCommands = ({
         });
         writeJson(result);
       });
+    attachEndpoint(appsStatsGet, {
+      method: "GET",
+      path: "/k/v1/apps/statistics.json",
+    });
   }
 
   // ktspaces statistics get
@@ -39,13 +50,14 @@ export const registerStatisticsCommands = ({
     .description("Spaces statistics");
 
   // GET /k/v1/spaces/statistics.json
-  spacesStats
+  const spacesStatsGet = spacesStats
     .command("get")
     .description("Get space statistics")
-    .requiredOption("--ids <ids>", "Comma-separated Space IDs")
+    .option("--ids <ids>", "Comma-separated Space IDs")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["ids"]);
       const global = getGlobalOptions(cmd);
-      noGuestSpace(global, "spaces statistics get");
+      noGuestSpace(global, "spaces statistics get", opts);
       const ids = opts.ids.split(",");
 
       const result = await kintoneRequest({
@@ -56,4 +68,8 @@ export const registerStatisticsCommands = ({
       });
       writeJson(result);
     });
+  attachEndpoint(spacesStatsGet, {
+    method: "GET",
+    path: "/k/v1/spaces/statistics.json",
+  });
 };

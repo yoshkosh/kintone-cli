@@ -12,6 +12,7 @@ import { registerAppPluginsCommands } from "./commands/app-plugins.js";
 import { registerPluginCommands } from "./commands/plugin.js";
 import { registerBulkRequestCommands } from "./commands/bulk-request.js";
 import { registerStatisticsCommands } from "./commands/statistics.js";
+import { installSchemaOption } from "./schema-option.js";
 
 export const createProgram = (): Command => {
   const program = new Command();
@@ -19,7 +20,7 @@ export const createProgram = (): Command => {
   program
     .name("kt")
     .description("kintone REST API CLI")
-    .version("0.5.0")
+    .version("0.5.3")
     .option(
       "--auth-type <type>",
       "Authentication type: api-token, password, oauth",
@@ -43,6 +44,8 @@ export const createProgram = (): Command => {
   registerPluginCommands(program);
   registerBulkRequestCommands(program);
   registerStatisticsCommands({ program });
+
+  installSchemaOption(program);
 
   return program;
 };

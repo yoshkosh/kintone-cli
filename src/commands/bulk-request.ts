@@ -1,10 +1,12 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
+import { attachEndpoint } from "../schema-option.js";
 import {
   getGlobalOptions,
   noGuestSpace,
   writeJson,
   dryRunOutput,
+  requireOpts,
 } from "./shared.js";
 
 export const registerBulkRequestCommands = (program: Command): void => {
@@ -13,14 +15,15 @@ export const registerBulkRequestCommands = (program: Command): void => {
     .description("Bulk request operations (/k/v1/bulkRequest)");
 
   // POST /k/v1/bulkRequest.json
-  bulkRequest
+  const bulkRequestAdd = bulkRequest
     .command("add")
     .description("Execute multiple API requests in a single call")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      noGuestSpace(global, "bulk-request add");
+      noGuestSpace(global, "bulk-request add", opts);
       const body = JSON.parse(opts.json);
 
       if (opts.dryRun) {
@@ -40,4 +43,8 @@ export const registerBulkRequestCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(bulkRequestAdd, {
+    method: "POST",
+    path: "/k/v1/bulkRequest.json",
+  });
 };

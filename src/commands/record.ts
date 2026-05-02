@@ -1,10 +1,12 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
+import { attachEndpoint } from "../schema-option.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
   writeJson,
   dryRunOutput,
+  requireOpts,
 } from "./shared.js";
 
 type CursorOptions = {
@@ -73,12 +75,13 @@ export const registerRecordCommands = (
     .description("Record operations (/k/v1/record)");
 
   // GET /k/v1/record.json
-  record
+  const recordGet = record
     .command("get")
     .description("Get a single record")
-    .requiredOption("--app <id>", "App ID")
-    .requiredOption("--id <id>", "Record ID")
+    .option("--app <id>", "App ID")
+    .option("--id <id>", "Record ID")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app", "id"]);
       const global = getGlobalOptions(cmd);
       const result = await kintoneRequest({
         method: "GET",
@@ -89,14 +92,16 @@ export const registerRecordCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(recordGet, { method: "GET", path: "/k/v1/record.json" });
 
   // POST /k/v1/record.json
-  record
+  const recordAdd = record
     .command("add")
     .description("Add a single record")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -114,14 +119,16 @@ export const registerRecordCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(recordAdd, { method: "POST", path: "/k/v1/record.json" });
 
   // PUT /k/v1/record.json
-  record
+  const recordUpdate = record
     .command("update")
     .description("Update a single record")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -139,6 +146,7 @@ export const registerRecordCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(recordUpdate, { method: "PUT", path: "/k/v1/record.json" });
 
   // records (plural)
   const records = program
@@ -146,15 +154,16 @@ export const registerRecordCommands = (
     .description("Records operations (/k/v1/records)");
 
   // GET /k/v1/records.json
-  records
+  const recordsGet = records
     .command("get")
     .description("Get multiple records")
-    .requiredOption("--app <id>", "App ID")
+    .option("--app <id>", "App ID")
     .option("--query <query>", "Query string")
     .option("--fields <fields>", "Comma-separated field codes")
     .option("--total-count", "Include total count in response")
     .option("--page-all", "Fetch all records using cursor API (NDJSON output)")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app"]);
       const global = getGlobalOptions(cmd);
       const gSpaceId = toGuestSpaceId(global);
 
@@ -183,14 +192,16 @@ export const registerRecordCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(recordsGet, { method: "GET", path: "/k/v1/records.json" });
 
   // POST /k/v1/records.json
-  records
+  const recordsAdd = records
     .command("add")
     .description("Add multiple records")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -208,14 +219,16 @@ export const registerRecordCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(recordsAdd, { method: "POST", path: "/k/v1/records.json" });
 
   // PUT /k/v1/records.json
-  records
+  const recordsUpdate = records
     .command("update")
     .description("Update multiple records")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -233,17 +246,16 @@ export const registerRecordCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(recordsUpdate, { method: "PUT", path: "/k/v1/records.json" });
 
   // DELETE /k/v1/records.json
-  records
+  const recordsDelete = records
     .command("delete")
     .description("Delete multiple records")
-    .requiredOption(
-      "--json <payload>",
-      "Raw JSON payload (app, ids, revisions)",
-    )
+    .option("--json <payload>", "Raw JSON payload (app, ids, revisions)")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const parsed = JSON.parse(opts.json);
 
@@ -265,6 +277,10 @@ export const registerRecordCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(recordsDelete, {
+    method: "DELETE",
+    path: "/k/v1/records.json",
+  });
 
   return { record, records };
 };

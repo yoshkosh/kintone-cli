@@ -3,7 +3,8 @@ import { basename } from "node:path";
 import { Command } from "commander";
 import { resolveAuth, buildAuthHeaders } from "../auth.js";
 import { getBaseUrl, buildPath } from "../client.js";
-import { getGlobalOptions, toGuestSpaceId } from "./shared.js";
+import { attachEndpoint } from "../schema-option.js";
+import { getGlobalOptions, toGuestSpaceId, requireOpts } from "./shared.js";
 
 export const registerFileCommands = (program: Command): void => {
   const file = program
@@ -11,12 +12,13 @@ export const registerFileCommands = (program: Command): void => {
     .description("File operations (/k/v1/file)");
 
   // GET /k/v1/file.json — バイナリレスポンス
-  file
+  const fileGet = file
     .command("get")
     .description("Download a file")
-    .requiredOption("--file-key <key>", "File key")
+    .option("--file-key <key>", "File key")
     .option("--output <path>", "Output file path (default: stdout)")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["fileKey"]);
       const global = getGlobalOptions(cmd);
       const gSpaceId = toGuestSpaceId(global);
       const baseUrl = getBaseUrl();
@@ -48,13 +50,15 @@ export const registerFileCommands = (program: Command): void => {
         process.stdout.write(buffer);
       }
     });
+  attachEndpoint(fileGet, { method: "GET", path: "/k/v1/file.json" });
 
   // POST /k/v1/file.json — multipart/form-data
-  file
+  const fileAdd = file
     .command("add")
     .description("Upload a file")
-    .requiredOption("--file <path>", "File path to upload")
+    .option("--file <path>", "File path to upload")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["file"]);
       const global = getGlobalOptions(cmd);
       const gSpaceId = toGuestSpaceId(global);
       const baseUrl = getBaseUrl();
@@ -87,4 +91,5 @@ export const registerFileCommands = (program: Command): void => {
         JSON.stringify(JSON.parse(responseBody), undefined, 2) + "\n",
       );
     });
+  attachEndpoint(fileAdd, { method: "POST", path: "/k/v1/file.json" });
 };

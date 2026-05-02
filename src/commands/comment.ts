@@ -1,10 +1,12 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
+import { attachEndpoint } from "../schema-option.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
   writeJson,
   dryRunOutput,
+  requireOpts,
 } from "./shared.js";
 
 export const registerCommentCommands = (record: Command): void => {
@@ -13,12 +15,13 @@ export const registerCommentCommands = (record: Command): void => {
     .description("Comment operations (/k/v1/record/comment)");
 
   // POST /k/v1/record/comment.json
-  comment
+  const commentAdd = comment
     .command("add")
     .description("Add a comment to a record")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -40,16 +43,21 @@ export const registerCommentCommands = (record: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(commentAdd, {
+    method: "POST",
+    path: "/k/v1/record/comment.json",
+  });
 
   // DELETE /k/v1/record/comment.json
-  comment
+  const commentDelete = comment
     .command("delete")
     .description("Delete a comment from a record")
-    .requiredOption("--app <id>", "App ID")
-    .requiredOption("--record <id>", "Record ID")
-    .requiredOption("--comment <id>", "Comment ID")
+    .option("--app <id>", "App ID")
+    .option("--record <id>", "Record ID")
+    .option("--comment <id>", "Comment ID")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app", "record", "comment"]);
       const global = getGlobalOptions(cmd);
       const params = {
         app: opts.app,
@@ -75,21 +83,26 @@ export const registerCommentCommands = (record: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(commentDelete, {
+    method: "DELETE",
+    path: "/k/v1/record/comment.json",
+  });
 
   // GET /k/v1/record/comments.json
   const comments = record
     .command("comments")
     .description("Comments operations (/k/v1/record/comments)");
 
-  comments
+  const commentsGet = comments
     .command("get")
     .description("Get comments from a record")
-    .requiredOption("--app <id>", "App ID")
-    .requiredOption("--record <id>", "Record ID")
+    .option("--app <id>", "App ID")
+    .option("--record <id>", "Record ID")
     .option("--order <order>", "Sort order: ASC or DESC")
     .option("--offset <offset>", "Number of comments to skip")
     .option("--limit <limit>", "Number of comments to retrieve (max 10)")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app", "record"]);
       const global = getGlobalOptions(cmd);
       const params: Record<string, unknown> = {
         app: opts.app,
@@ -108,4 +121,8 @@ export const registerCommentCommands = (record: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(commentsGet, {
+    method: "GET",
+    path: "/k/v1/record/comments.json",
+  });
 };

@@ -1,10 +1,12 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
+import { attachEndpoint } from "../schema-option.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
   writeJson,
   dryRunOutput,
+  requireOpts,
 } from "./shared.js";
 
 export const registerStatusCommands = ({
@@ -20,12 +22,13 @@ export const registerStatusCommands = ({
     .description("Record status operations");
 
   // PUT /k/v1/record/status.json
-  recordStatus
+  const recordStatusUpdate = recordStatus
     .command("update")
     .description("Update record status")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -47,6 +50,10 @@ export const registerStatusCommands = ({
       });
       writeJson(result);
     });
+  attachEndpoint(recordStatusUpdate, {
+    method: "PUT",
+    path: "/k/v1/record/status.json",
+  });
 
   // --- record assignees ---
   const recordAssignees = record
@@ -54,12 +61,13 @@ export const registerStatusCommands = ({
     .description("Record assignees operations");
 
   // PUT /k/v1/record/assignees.json
-  recordAssignees
+  const recordAssigneesUpdate = recordAssignees
     .command("update")
     .description("Update record assignees")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -81,6 +89,10 @@ export const registerStatusCommands = ({
       });
       writeJson(result);
     });
+  attachEndpoint(recordAssigneesUpdate, {
+    method: "PUT",
+    path: "/k/v1/record/assignees.json",
+  });
 
   // --- records status ---
   const recordsStatus = records
@@ -88,12 +100,13 @@ export const registerStatusCommands = ({
     .description("Records status operations");
 
   // PUT /k/v1/records/status.json
-  recordsStatus
+  const recordsStatusUpdate = recordsStatus
     .command("update")
     .description("Update multiple record statuses")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -115,6 +128,10 @@ export const registerStatusCommands = ({
       });
       writeJson(result);
     });
+  attachEndpoint(recordsStatusUpdate, {
+    method: "PUT",
+    path: "/k/v1/records/status.json",
+  });
 
   // --- records acl-evaluate ---
   const recordsAclEvaluate = records
@@ -122,12 +139,13 @@ export const registerStatusCommands = ({
     .description("Records ACL evaluate");
 
   // GET /k/v1/records/acl/evaluate.json
-  recordsAclEvaluate
+  const recordsAclEvaluateGet = recordsAclEvaluate
     .command("get")
     .description("Evaluate record ACL permissions")
-    .requiredOption("--app <id>", "App ID")
-    .requiredOption("--ids <ids>", "Comma-separated Record IDs")
+    .option("--app <id>", "App ID")
+    .option("--ids <ids>", "Comma-separated Record IDs")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app", "ids"]);
       const global = getGlobalOptions(cmd);
       const ids = opts.ids.split(",");
       const result = await kintoneRequest({
@@ -139,4 +157,8 @@ export const registerStatusCommands = ({
       });
       writeJson(result);
     });
+  attachEndpoint(recordsAclEvaluateGet, {
+    method: "GET",
+    path: "/k/v1/records/acl/evaluate.json",
+  });
 };

@@ -1,6 +1,6 @@
 {
   "name": "@yoshkosh/kintone-cli",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "kintone REST API CLI tool",
   "type": "module",
   "files": [
@@ -11,11 +11,13 @@
     "kt": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run build:spec",
+    "build:spec": "node scripts/build-spec.mjs",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "npm run build:spec && vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "kintone",

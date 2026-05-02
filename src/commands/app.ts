@@ -1,17 +1,24 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
-import { getGlobalOptions, toGuestSpaceId, writeJson } from "./shared.js";
+import { attachEndpoint } from "../schema-option.js";
+import {
+  getGlobalOptions,
+  toGuestSpaceId,
+  writeJson,
+  requireOpts,
+} from "./shared.js";
 
 export const registerAppCommands = (program: Command): { app: Command } => {
   const app = program.command("app").description("App operations (/k/v1/app)");
 
   // GET /k/v1/app.json — query: id(必須), lang
-  app
+  const appGet = app
     .command("get")
     .description("Get app info")
-    .requiredOption("--id <id>", "App ID")
+    .option("--id <id>", "App ID")
     .option("--lang <lang>", "Language: default, en, zh, ja, user")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["id"]);
       const global = getGlobalOptions(cmd);
       const params: Record<string, unknown> = { id: opts.id };
       if (opts.lang) params.lang = opts.lang;
@@ -25,6 +32,7 @@ export const registerAppCommands = (program: Command): { app: Command } => {
       });
       writeJson(result);
     });
+  attachEndpoint(appGet, { method: "GET", path: "/k/v1/app.json" });
 
   // --- form-fields ---
 
@@ -33,12 +41,13 @@ export const registerAppCommands = (program: Command): { app: Command } => {
     .description("App form field operations (/k/v1/app/form/fields)");
 
   // GET /k/v1/app/form/fields.json — query: app(必須), lang
-  formFields
+  const formFieldsGet = formFields
     .command("get")
     .description("Get form fields (live)")
-    .requiredOption("--app <id>", "App ID")
+    .option("--app <id>", "App ID")
     .option("--lang <lang>", "Language: default, en, zh, ja, user")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app"]);
       const global = getGlobalOptions(cmd);
       const params: Record<string, unknown> = { app: opts.app };
       if (opts.lang) params.lang = opts.lang;
@@ -52,6 +61,10 @@ export const registerAppCommands = (program: Command): { app: Command } => {
       });
       writeJson(result);
     });
+  attachEndpoint(formFieldsGet, {
+    method: "GET",
+    path: "/k/v1/app/form/fields.json",
+  });
 
   // --- form-layout ---
 
@@ -60,11 +73,12 @@ export const registerAppCommands = (program: Command): { app: Command } => {
     .description("App form layout operations (/k/v1/app/form/layout)");
 
   // GET /k/v1/app/form/layout.json — query: app(必須)
-  formLayout
+  const formLayoutGet = formLayout
     .command("get")
     .description("Get form layout (live)")
-    .requiredOption("--app <id>", "App ID")
+    .option("--app <id>", "App ID")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app"]);
       const global = getGlobalOptions(cmd);
       const result = await kintoneRequest({
         method: "GET",
@@ -75,6 +89,10 @@ export const registerAppCommands = (program: Command): { app: Command } => {
       });
       writeJson(result);
     });
+  attachEndpoint(formLayoutGet, {
+    method: "GET",
+    path: "/k/v1/app/form/layout.json",
+  });
 
   // --- settings ---
 
@@ -83,12 +101,13 @@ export const registerAppCommands = (program: Command): { app: Command } => {
     .description("App settings operations (/k/v1/app/settings)");
 
   // GET /k/v1/app/settings.json — query: app(必須), lang
-  settings
+  const settingsGet = settings
     .command("get")
     .description("Get app settings (live)")
-    .requiredOption("--app <id>", "App ID")
+    .option("--app <id>", "App ID")
     .option("--lang <lang>", "Language: default, en, zh, ja, user")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app"]);
       const global = getGlobalOptions(cmd);
       const params: Record<string, unknown> = { app: opts.app };
       if (opts.lang) params.lang = opts.lang;
@@ -102,6 +121,10 @@ export const registerAppCommands = (program: Command): { app: Command } => {
       });
       writeJson(result);
     });
+  attachEndpoint(settingsGet, {
+    method: "GET",
+    path: "/k/v1/app/settings.json",
+  });
 
   // --- apps (plural) ---
 
@@ -110,7 +133,7 @@ export const registerAppCommands = (program: Command): { app: Command } => {
     .description("Apps operations (/k/v1/apps)");
 
   // GET /k/v1/apps.json — query: 全てオプション
-  apps
+  const appsGet = apps
     .command("get")
     .description("Get apps list")
     .option("--ids <ids>", "Comma-separated App IDs")
@@ -138,6 +161,7 @@ export const registerAppCommands = (program: Command): { app: Command } => {
       });
       writeJson(result);
     });
+  attachEndpoint(appsGet, { method: "GET", path: "/k/v1/apps.json" });
 
   return { app };
 };

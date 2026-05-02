@@ -1,10 +1,12 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
+import { attachEndpoint } from "../schema-option.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
   writeJson,
   dryRunOutput,
+  requireOpts,
 } from "./shared.js";
 
 export const registerPreviewCommands = (
@@ -21,11 +23,12 @@ export const registerPreviewCommands = (
     .description("App deploy operations (/k/v1/preview/app/deploy)");
 
   // GET /k/v1/preview/app/deploy.json
-  deploy
+  const deployGet = deploy
     .command("get")
     .description("Get deploy status of apps")
-    .requiredOption("--apps <ids>", "Comma-separated App IDs")
+    .option("--apps <ids>", "Comma-separated App IDs")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["apps"]);
       const global = getGlobalOptions(cmd);
       const apps = opts.apps.split(",").map(Number);
 
@@ -38,14 +41,19 @@ export const registerPreviewCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(deployGet, {
+    method: "GET",
+    path: "/k/v1/preview/app/deploy.json",
+  });
 
   // POST /k/v1/preview/app/deploy.json
-  deploy
+  const deployAdd = deploy
     .command("add")
     .description("Deploy app settings to live")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -67,6 +75,10 @@ export const registerPreviewCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(deployAdd, {
+    method: "POST",
+    path: "/k/v1/preview/app/deploy.json",
+  });
 
   // --- form-fields ---
 
@@ -77,12 +89,13 @@ export const registerPreviewCommands = (
     );
 
   // GET /k/v1/preview/app/form/fields.json
-  formFields
+  const formFieldsGet = formFields
     .command("get")
     .description("Get form fields (pre-live)")
-    .requiredOption("--app <id>", "App ID")
+    .option("--app <id>", "App ID")
     .option("--lang <lang>", "Language: default, en, zh, ja, user")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app"]);
       const global = getGlobalOptions(cmd);
       const params: Record<string, unknown> = { app: opts.app };
       if (opts.lang) params.lang = opts.lang;
@@ -96,14 +109,19 @@ export const registerPreviewCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(formFieldsGet, {
+    method: "GET",
+    path: "/k/v1/preview/app/form/fields.json",
+  });
 
   // POST /k/v1/preview/app/form/fields.json
-  formFields
+  const formFieldsAdd = formFields
     .command("add")
     .description("Add form fields (pre-live)")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -125,14 +143,19 @@ export const registerPreviewCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(formFieldsAdd, {
+    method: "POST",
+    path: "/k/v1/preview/app/form/fields.json",
+  });
 
   // PUT /k/v1/preview/app/form/fields.json
-  formFields
+  const formFieldsUpdate = formFields
     .command("update")
     .description("Update form fields (pre-live)")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -154,19 +177,21 @@ export const registerPreviewCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(formFieldsUpdate, {
+    method: "PUT",
+    path: "/k/v1/preview/app/form/fields.json",
+  });
 
   // DELETE /k/v1/preview/app/form/fields.json
-  formFields
+  const formFieldsDelete = formFields
     .command("delete")
     .description("Delete form fields (pre-live)")
-    .requiredOption("--app <id>", "App ID")
-    .requiredOption(
-      "--fields <fields>",
-      "Comma-separated field codes to delete",
-    )
+    .option("--app <id>", "App ID")
+    .option("--fields <fields>", "Comma-separated field codes to delete")
     .option("--revision <revision>", "Expected revision number")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app", "fields"]);
       const global = getGlobalOptions(cmd);
       const params: Record<string, unknown> = {
         app: opts.app,
@@ -192,16 +217,21 @@ export const registerPreviewCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(formFieldsDelete, {
+    method: "DELETE",
+    path: "/k/v1/preview/app/form/fields.json",
+  });
 
   // --- preview app add ---
 
   // POST /k/v1/preview/app.json
-  previewApp
+  const previewAppAdd = previewApp
     .command("add")
     .description("Create a new app")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -223,6 +253,10 @@ export const registerPreviewCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(previewAppAdd, {
+    method: "POST",
+    path: "/k/v1/preview/app.json",
+  });
 
   // --- preview app settings ---
 
@@ -231,12 +265,13 @@ export const registerPreviewCommands = (
     .description("Preview app settings operations");
 
   // GET /k/v1/preview/app/settings.json
-  previewSettings
+  const previewSettingsGet = previewSettings
     .command("get")
     .description("Get app settings (pre-live)")
-    .requiredOption("--app <id>", "App ID")
+    .option("--app <id>", "App ID")
     .option("--lang <lang>", "Language: default, en, zh, ja, user")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app"]);
       const global = getGlobalOptions(cmd);
       const params: Record<string, unknown> = { app: opts.app };
       if (opts.lang) params.lang = opts.lang;
@@ -250,14 +285,19 @@ export const registerPreviewCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(previewSettingsGet, {
+    method: "GET",
+    path: "/k/v1/preview/app/settings.json",
+  });
 
   // PUT /k/v1/preview/app/settings.json
-  previewSettings
+  const previewSettingsUpdate = previewSettings
     .command("update")
     .description("Update app settings (pre-live)")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -279,6 +319,10 @@ export const registerPreviewCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(previewSettingsUpdate, {
+    method: "PUT",
+    path: "/k/v1/preview/app/settings.json",
+  });
 
   // --- preview app form-layout ---
 
@@ -287,11 +331,12 @@ export const registerPreviewCommands = (
     .description("Preview form layout operations");
 
   // GET /k/v1/preview/app/form/layout.json
-  previewFormLayout
+  const previewFormLayoutGet = previewFormLayout
     .command("get")
     .description("Get form layout (pre-live)")
-    .requiredOption("--app <id>", "App ID")
+    .option("--app <id>", "App ID")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app"]);
       const global = getGlobalOptions(cmd);
       const result = await kintoneRequest({
         method: "GET",
@@ -302,14 +347,19 @@ export const registerPreviewCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(previewFormLayoutGet, {
+    method: "GET",
+    path: "/k/v1/preview/app/form/layout.json",
+  });
 
   // PUT /k/v1/preview/app/form/layout.json
-  previewFormLayout
+  const previewFormLayoutUpdate = previewFormLayout
     .command("update")
     .description("Update form layout (pre-live)")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -331,6 +381,10 @@ export const registerPreviewCommands = (
       });
       writeJson(result);
     });
+  attachEndpoint(previewFormLayoutUpdate, {
+    method: "PUT",
+    path: "/k/v1/preview/app/form/layout.json",
+  });
 
   return { previewApp };
 };

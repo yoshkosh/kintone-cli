@@ -1,10 +1,12 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
+import { attachEndpoint } from "../schema-option.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
   writeJson,
   dryRunOutput,
+  requireOpts,
 } from "./shared.js";
 
 export const registerAppPluginsCommands = ({
@@ -18,12 +20,13 @@ export const registerAppPluginsCommands = ({
   const appPlugins = app.command("plugins").description("App plugins");
 
   // GET /k/v1/app/plugins.json
-  appPlugins
+  const appPluginsGet = appPlugins
     .command("get")
     .description("Get app plugins")
-    .requiredOption("--app <id>", "App ID")
+    .option("--app <id>", "App ID")
     .option("--lang <lang>", "Language: default, en, zh, ja, user")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app"]);
       const global = getGlobalOptions(cmd);
       const params: Record<string, unknown> = { app: opts.app };
       if (opts.lang) params.lang = opts.lang;
@@ -37,6 +40,10 @@ export const registerAppPluginsCommands = ({
       });
       writeJson(result);
     });
+  attachEndpoint(appPluginsGet, {
+    method: "GET",
+    path: "/k/v1/app/plugins.json",
+  });
 
   // --- preview app plugins (GET + POST) ---
   const previewPlugins = previewApp
@@ -44,12 +51,13 @@ export const registerAppPluginsCommands = ({
     .description("Preview app plugins");
 
   // GET /k/v1/preview/app/plugins.json
-  previewPlugins
+  const previewPluginsGet = previewPlugins
     .command("get")
     .description("Get app plugins (pre-live)")
-    .requiredOption("--app <id>", "App ID")
+    .option("--app <id>", "App ID")
     .option("--lang <lang>", "Language: default, en, zh, ja, user")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["app"]);
       const global = getGlobalOptions(cmd);
       const params: Record<string, unknown> = { app: opts.app };
       if (opts.lang) params.lang = opts.lang;
@@ -63,14 +71,19 @@ export const registerAppPluginsCommands = ({
       });
       writeJson(result);
     });
+  attachEndpoint(previewPluginsGet, {
+    method: "GET",
+    path: "/k/v1/preview/app/plugins.json",
+  });
 
   // POST /k/v1/preview/app/plugins.json
-  previewPlugins
+  const previewPluginsAdd = previewPlugins
     .command("add")
     .description("Add plugins to app (pre-live)")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -92,17 +105,22 @@ export const registerAppPluginsCommands = ({
       });
       writeJson(result);
     });
+  attachEndpoint(previewPluginsAdd, {
+    method: "POST",
+    path: "/k/v1/preview/app/plugins.json",
+  });
 
   // --- app move ---
   const appMove = app.command("move").description("Move app to another space");
 
   // POST /k/v1/app/move.json
-  appMove
+  const appMoveAdd = appMove
     .command("add")
     .description("Move app to another space")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -124,4 +142,5 @@ export const registerAppPluginsCommands = ({
       });
       writeJson(result);
     });
+  attachEndpoint(appMoveAdd, { method: "POST", path: "/k/v1/app/move.json" });
 };

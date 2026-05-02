@@ -1,11 +1,13 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
+import { attachEndpoint } from "../schema-option.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
   writeJson,
   dryRunOutput,
   noGuestSpace,
+  requireOpts,
 } from "./shared.js";
 
 export const registerSpaceCommands = (program: Command): void => {
@@ -14,11 +16,12 @@ export const registerSpaceCommands = (program: Command): void => {
     .description("Space operations (/k/v1/space)");
 
   // GET /k/v1/space.json
-  space
+  const spaceGet = space
     .command("get")
     .description("Get space info")
-    .requiredOption("--id <id>", "Space ID")
+    .option("--id <id>", "Space ID")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["id"]);
       const global = getGlobalOptions(cmd);
       const result = await kintoneRequest({
         method: "GET",
@@ -29,14 +32,16 @@ export const registerSpaceCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(spaceGet, { method: "GET", path: "/k/v1/space.json" });
 
   // PUT /k/v1/space.json
-  space
+  const spaceUpdate = space
     .command("update")
     .description("Update space settings")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -54,14 +59,16 @@ export const registerSpaceCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(spaceUpdate, { method: "PUT", path: "/k/v1/space.json" });
 
   // DELETE /k/v1/space.json
-  space
+  const spaceDelete = space
     .command("delete")
     .description("Delete a space")
-    .requiredOption("--id <id>", "Space ID")
+    .option("--id <id>", "Space ID")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["id"]);
       const global = getGlobalOptions(cmd);
       const params = { id: opts.id };
 
@@ -79,17 +86,19 @@ export const registerSpaceCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(spaceDelete, { method: "DELETE", path: "/k/v1/space.json" });
 
   // --- space body ---
   const body = space.command("body").description("Space body operations");
 
   // PUT /k/v1/space/body.json
-  body
+  const bodyUpdate = body
     .command("update")
     .description("Update space body")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
 
@@ -111,6 +120,7 @@ export const registerSpaceCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(bodyUpdate, { method: "PUT", path: "/k/v1/space/body.json" });
 
   // --- space members ---
   const members = space
@@ -118,11 +128,12 @@ export const registerSpaceCommands = (program: Command): void => {
     .description("Space member operations");
 
   // GET /k/v1/space/members.json
-  members
+  const membersGet = members
     .command("get")
     .description("Get space members")
-    .requiredOption("--id <id>", "Space ID")
+    .option("--id <id>", "Space ID")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["id"]);
       const global = getGlobalOptions(cmd);
       const result = await kintoneRequest({
         method: "GET",
@@ -133,14 +144,19 @@ export const registerSpaceCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(membersGet, {
+    method: "GET",
+    path: "/k/v1/space/members.json",
+  });
 
   // PUT /k/v1/space/members.json
-  members
+  const membersUpdate = members
     .command("update")
     .description("Update space members")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
 
@@ -162,17 +178,22 @@ export const registerSpaceCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(membersUpdate, {
+    method: "PUT",
+    path: "/k/v1/space/members.json",
+  });
 
   // --- space guests ---
   const guests = space.command("guests").description("Space guest operations");
 
   // PUT /k/v1/space/guests.json
-  guests
+  const guestsUpdate = guests
     .command("update")
     .description("Update space guests")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
 
@@ -194,17 +215,22 @@ export const registerSpaceCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(guestsUpdate, {
+    method: "PUT",
+    path: "/k/v1/space/guests.json",
+  });
 
   // --- space thread ---
   const thread = space.command("thread").description("Space thread operations");
 
   // POST /k/v1/space/thread.json
-  thread
+  const threadAdd = thread
     .command("add")
     .description("Create a thread")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
 
@@ -226,14 +252,19 @@ export const registerSpaceCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(threadAdd, {
+    method: "POST",
+    path: "/k/v1/space/thread.json",
+  });
 
   // PUT /k/v1/space/thread.json
-  thread
+  const threadUpdate = thread
     .command("update")
     .description("Update a thread")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
 
@@ -255,6 +286,10 @@ export const registerSpaceCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(threadUpdate, {
+    method: "PUT",
+    path: "/k/v1/space/thread.json",
+  });
 
   // --- space thread comment ---
   const threadComment = thread
@@ -262,12 +297,13 @@ export const registerSpaceCommands = (program: Command): void => {
     .description("Thread comment operations");
 
   // POST /k/v1/space/thread/comment.json
-  threadComment
+  const threadCommentAdd = threadComment
     .command("add")
     .description("Add a thread comment")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
 
@@ -289,6 +325,10 @@ export const registerSpaceCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(threadCommentAdd, {
+    method: "POST",
+    path: "/k/v1/space/thread/comment.json",
+  });
 
   // --- template space ---
   const template = program
@@ -299,12 +339,13 @@ export const registerSpaceCommands = (program: Command): void => {
     .description("Space template operations");
 
   // POST /k/v1/template/space.json
-  templateSpace
+  const templateSpaceAdd = templateSpace
     .command("add")
     .description("Create space from template")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
 
@@ -326,6 +367,10 @@ export const registerSpaceCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(templateSpaceAdd, {
+    method: "POST",
+    path: "/k/v1/template/space.json",
+  });
 
   // --- guests (top-level) ---
   const guestsCmd = program
@@ -333,14 +378,15 @@ export const registerSpaceCommands = (program: Command): void => {
     .description("Guest user operations (/k/v1/guests)");
 
   // POST /k/v1/guests.json
-  guestsCmd
+  const guestsCmdAdd = guestsCmd
     .command("add")
     .description("Add guest users")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      noGuestSpace(global, "guests add");
+      noGuestSpace(global, "guests add", opts);
       const bodyData = JSON.parse(opts.json);
 
       if (opts.dryRun) {
@@ -360,19 +406,18 @@ export const registerSpaceCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(guestsCmdAdd, { method: "POST", path: "/k/v1/guests.json" });
 
   // DELETE /k/v1/guests.json
-  guestsCmd
+  const guestsCmdDelete = guestsCmd
     .command("delete")
     .description("Delete guest users")
-    .requiredOption(
-      "--guests <emails>",
-      "Comma-separated guest email addresses",
-    )
+    .option("--guests <emails>", "Comma-separated guest email addresses")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["guests"]);
       const global = getGlobalOptions(cmd);
-      noGuestSpace(global, "guests delete");
+      noGuestSpace(global, "guests delete", opts);
       const params = { guests: opts.guests.split(",") };
 
       if (opts.dryRun) {
@@ -392,4 +437,8 @@ export const registerSpaceCommands = (program: Command): void => {
       });
       writeJson(result);
     });
+  attachEndpoint(guestsCmdDelete, {
+    method: "DELETE",
+    path: "/k/v1/guests.json",
+  });
 };

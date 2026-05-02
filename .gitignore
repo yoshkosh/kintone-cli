@@ -3,4 +3,5 @@ dist/
 *.tsbuildinfo
 .npmrc
 .claude/
+src/spec.json
 

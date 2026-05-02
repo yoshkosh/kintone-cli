@@ -16,7 +16,7 @@
 
 ## 2026-03-11 OpenAPI Spec: 静的実装 + ランタイム同梱
 
-**決定**: コマンドは静的実装（エンドポイントごとにコードを記述）。OpenAPI Specはランタイムでバリデーション・`--describe`・保守に活用。
+**決定**: コマンドは静的実装（エンドポイントごとにコードを記述）。OpenAPI Specはランタイムでバリデーション・`--schema`・保守に活用。
 
 **理由**: 動的生成（specからコマンドを自動生成する方式）はgws CLIの事例があるが、kintone-cliの規模では静的実装の方がシンプルで制御しやすい。
 
@@ -219,3 +219,26 @@
 - spec 取り込みを non-bundled で行う: external `$ref` 解決ロジックが複雑化するため bundled 版を前提とする
 
 **参考**: `reports/phase4-test-strategy.md` v3 §5, §6, §7
+
+---
+
+## 2026-05-02 `--schema` オプション
+
+**決定**: 各エンドポイントコマンドに `--schema` を追加し、OpenAPI Spec の該当 operation を `{ method, path, operation }` 形式の compact JSON で標準出力に吐く。`--schema` 指定時は **完全副作用ゼロ**（必須オプション検証・`noGuestSpace` ガード・API 呼び出しを全てスキップ）。早期終了は `process.exit` ではなく `CommanderError(0, "schema.output", "")` を throw して既存 `main()` の `exitOverride()` catch 経路に乗せる（テストで `process.exit` の副作用を避けるため）。`--guest-space-id` を併用しても通常パス（`/k/v1/...`）の schema を返す（guest テンプレートは spec 上同一 operation を共有しているため別出しの意味がない）。`--dry-run` と同時指定された場合は `--schema` を優先し、dry-run 出力は行わない。
+
+**理由**: AI エージェントが「このコマンドが期待する parameters/requestBody」を実 API を叩かずに取り出せるようにするため。spec を一次ソースとして CLI 内で配るのが最も予測可能性が高い（外部の cybozu developer network 等を都度参照させずに済む）。副作用ゼロは「schema 取得には認証も実環境も不要」という呼び出し側の素直な期待と整合させるため。
+
+**実装**:
+- ビルド時に `third_party/rest-api-spec/openapi.yaml` を JSON 化して `dist/spec.json`（npm パッケージ同梱）と `src/spec.json`（test/`import.meta.url` 解決用、`.gitignore`）の両方に書き出す。
+- `attachEndpoint(cmd, { method, path })` でコマンドにエンドポイントメタを付与（`WeakMap` で外部管理。Command 型を汚染しない）。
+- `installSchemaOption(program)` を `cli.ts` の `createProgram` 末尾で呼び、メタ付きコマンドに `--schema` オプションと `preAction` フックを後付けする。
+- `requireOpts(opts, names)` ヘルパーで `requiredOption` 相当の検証を action 内に移し、`opts.schema` が立っていればスキップ。`noGuestSpace(global, name, opts)` も同様に `opts?.schema` を見て早期 return。
+
+**不採用案**:
+- `process.exit(0)` で終了: vitest がテストランナーごと落ちる。`CommanderError` throw なら exitOverride 配下で素直に exit code を返せる。
+- `requiredOption` のままにして `preValidate` で介入: commander の必須検証は action 直前に走るので、フック側で「実はオプション不要」を表現する標準的な手段がない。`option` に降格して action 内検証にした方が制御が明確。
+- guest path をテンプレートで返す: spec 上 `/k/guest/{guestSpaceId}/...` 用の独立 operation がある場合と通常パスと同一の場合が混在しており、利用側の混乱を避けるため通常パスに統一。
+- `--describe`: 出力が「コマンドのパラメータ要約」なら適切な名前だが、実際に出すのは spec の operation そのものなので `--schema` の方が誤解が少ない。
+- 動的引数なし `kt --schema`: 第一弾は対象スコープが曖昧（全エンドポイント？ ヘルプ？）なので保留。
+
+**参考**: `reports/schema-option-plan.md` v2、`reports/plan-review-cc.md`

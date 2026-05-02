@@ -4,7 +4,7 @@ description: "kintone REST API CLI. Use when operating on kintone apps, records,
 compatibility: Requires Node.js.
 metadata:
   author: yoshkosh
-  version: "0.5.1"
+  version: "0.5.3"
 allowed-tools: Bash(npx:*) Bash(kt:*)
 ---
 
@@ -212,6 +212,25 @@ If multiple auth methods are detected, a warning is shown. Use `--auth-type` to 
 | `--page-all` | `records get` | Fetch all records via cursor API (NDJSON output) |
 | `--total-count` | `records get` | Include total count in response |
 | `--lang <lang>` | Some GET commands | Language: `default`, `en`, `zh`, `ja`, `user` |
+| `--schema` | All endpoint commands | Print the OpenAPI Spec for this endpoint as JSON. No API call, no auth required, required options skipped. |
+
+## Schema self-inspection
+
+Append `--schema` to any endpoint command to print the OpenAPI Spec entry for that endpoint (`{ method, path, operation }`) as compact JSON. Useful when you need to know the exact `parameters` / `requestBody` shape before constructing `--json`. With `--schema`:
+
+- No API call is made — works without a valid `KINTONE_BASE_URL` or auth.
+- Required options can be omitted (`kt record add --schema` works without `--json`).
+- `noGuestSpace` guards are bypassed (`kt plugins get --schema --guest-space-id 5` works).
+- `--guest-space-id` is ignored — the non-guest path is returned, since guest paths share the same operation in the spec.
+- If combined with `--dry-run`, only the schema is printed.
+
+```bash
+# Inspect the request body shape for record add
+kt record add --schema | jq .operation.requestBody
+
+# List the query parameters for records get
+kt records get --schema | jq '.operation.parameters[] | select(.in == "query") | .name'
+```
 
 ## Rules
 

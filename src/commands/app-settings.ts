@@ -1,10 +1,12 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
+import { attachEndpoint } from "../schema-option.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
   writeJson,
   dryRunOutput,
+  requireOpts,
 } from "./shared.js";
 
 type AppSettingDef = {
@@ -93,13 +95,14 @@ const registerSettingGet = ({
   const cmd = parent
     .command("get")
     .description("Get setting")
-    .requiredOption("--app <id>", "App ID");
+    .option("--app <id>", "App ID");
 
   if (hasLang) {
     cmd.option("--lang <lang>", "Language: default, en, zh, ja, user");
   }
 
   cmd.action(async (opts, c) => {
+    requireOpts(opts, ["app"]);
     const global = getGlobalOptions(c);
     const params: Record<string, unknown> = { app: opts.app };
     if (opts.lang) params.lang = opts.lang;
@@ -113,6 +116,7 @@ const registerSettingGet = ({
     });
     writeJson(result);
   });
+  attachEndpoint(cmd, { method: "GET", path });
 };
 
 const registerSettingUpdate = ({
@@ -122,12 +126,13 @@ const registerSettingUpdate = ({
   parent: Command;
   path: string;
 }): void => {
-  parent
+  const cmd = parent
     .command("update")
     .description("Update setting")
-    .requiredOption("--json <payload>", "Raw JSON payload")
+    .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
+      requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
 
@@ -145,6 +150,7 @@ const registerSettingUpdate = ({
       });
       writeJson(result);
     });
+  attachEndpoint(cmd, { method: "PUT", path });
 };
 
 export const registerAppSettingsCommands = ({

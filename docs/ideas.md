@@ -6,24 +6,13 @@
 
 ## CLI 機能
 
-### `--schema` オプション
+### `--schema` 拡張（第二弾以降）
 
-OpenAPI Spec の該当エンドポイント部分を抽出して出力する。設計原則の「スキーマ自己検査」に対応。
+第一弾実装（2026-05-02、各エンドポイントコマンドに `--schema` を追加）は decisions.md 記録済み。残課題:
 
-#### 決定事項（2026-04-07 議論）
-
-- オプション名: `--schema`（出力が OpenAPI Spec そのものなので `--describe` ではない）
-- 出力内容: 該当エンドポイントの OpenAPI Spec 部分を抽出
-- 出力形式: JSON
-- spec の取り込み方法: `third_party/rest-api-spec/openapi.yaml` に bundled を同梱済（2026-04-21 時点）
-- ビルド: YAML → JSON 変換のみ。全体をバンドル
-- 抽出ロジック: `--schema` 実行時にランタイムで行う
-
-#### 未決事項
-
-- `kt --schema`（引数なし）で全体一覧を出すかどうか
-- YAML → JSON 変換ライブラリ（現在 `yaml` を dev 依存。runtime 依存への昇格を実装時に確定）
-- decisions.md への正式記録タイミング
+- 引数なし `kt --schema`: 全エンドポイント一覧 / インデックス出力。スコープと出力形式が未確定。
+- `$ref` の dereference: 現状は spec のまま切り出すため `#/components/schemas/...` が残る。LLM 側で扱いづらい場面が出れば対応。
+- `components.schemas` の併出: ref 解決と同様、参照先の schema を含めて返す案。
 
 ### `--json` ペイロードのバリデーション
 
