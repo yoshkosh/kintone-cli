@@ -14,16 +14,6 @@
 - `$ref` の dereference: 現状は spec のまま切り出すため `#/components/schemas/...` が残る。LLM 側で扱いづらい場面が出れば対応。
 - `components.schemas` の併出: ref 解決と同様、参照先の schema を含めて返す案。
 
-### `--json` ペイロードのバリデーション
-
-設計原則に含まれているが未実装。OpenAPI Spec をランタイムに同梱して、`--json` で投入されるペイロードを投入前に検証する。
-
-実装時に必要な作業:
-
-- `ajv` を dev 依存から runtime 依存に昇格
-- ビルド時 YAML → JSON 変換（`dist/spec.json`）を導入
-- `src/__test-helpers__/spec-validator.ts` のロジックを runtime 用に移植
-
 ### 出力フォーマットオプション（将来候補）
 
 `--format table` 等の人間向け出力フォーマット。2026-03-12 の初期リリース判断で見送り。JSON 出力のみで AI エージェント用途には十分だが、人間が直接使う場面では不便。
@@ -35,6 +25,8 @@
 ### bulkRequest 等での spec 厳密度の追加検証
 
 probe では 3 エンドポイント（`record GET/POST`、`records GET`）のみ確認済。bulkRequest のような複雑な requestBody で spec の検出力が落ちないかを実物のテスト中に観察する。
+
+`--json` バリデーション機能（2026-05-02 採用）の延長として、bulkRequest の `requests[].payload` に対して `(method, api)` から正確な sub-schema を引いて検証する処理を追加する案。spec 上は `BulkRequestPostRequestForm.payload` が anyOf で 8 種の sub-schema を列挙しているのみで `method`/`api` との対応は表現されていないため、CLI 側に `(method, api) → schema name` の マッピングを置く必要がある。
 
 ### エラーレスポンスの構造化アサーション（Layer B）
 

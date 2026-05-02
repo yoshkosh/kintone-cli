@@ -1,28 +1,12 @@
 import { Command, CommanderError } from "commander";
-import { getEndpointSchema, type HttpMethod } from "./spec.js";
+import { getEndpointSchema } from "./spec.js";
+import { getEndpointMeta, walkAll } from "./endpoint-registry.js";
 
-type EndpointMeta = { method: HttpMethod; path: string };
-
-const endpointMetaMap = new WeakMap<Command, EndpointMeta>();
-
-export const attachEndpoint = (
-  command: Command,
-  meta: EndpointMeta,
-): Command => {
-  endpointMetaMap.set(command, meta);
-  return command;
-};
-
-const walkAll = (root: Command, visit: (cmd: Command) => void): void => {
-  for (const child of root.commands) {
-    visit(child);
-    walkAll(child, visit);
-  }
-};
+export { attachEndpoint } from "./endpoint-registry.js";
 
 export const installSchemaOption = (program: Command): void => {
   walkAll(program, (cmd) => {
-    const meta = endpointMetaMap.get(cmd);
+    const meta = getEndpointMeta(cmd);
     if (!meta) return;
     cmd.option("--schema", "Output OpenAPI schema for this endpoint");
     cmd.hook("preAction", (_thisCommand, actionCommand) => {
@@ -33,5 +17,17 @@ export const installSchemaOption = (program: Command): void => {
       // process.exit ではなく CommanderError(0) を throw する
       throw new CommanderError(0, "schema.output", "");
     });
+  });
+};
+
+// NOTE: --json を持つ全エンドポイントコマンドへ --skip-validation を一括注入する。
+// 31 コマンド個別に option 宣言を書かず、新規 endpoint 追加時にも自動で揃うよう
+// walkAll で一括処理する。validator.ts は opts.skipValidation を見て分岐する。
+export const installSkipValidationOption = (program: Command): void => {
+  walkAll(program, (cmd) => {
+    if (!getEndpointMeta(cmd)) return;
+    const hasJson = cmd.options.some((o) => o.long === "--json");
+    if (!hasJson) return;
+    cmd.option("--skip-validation", "Bypass OpenAPI request body validation");
   });
 };

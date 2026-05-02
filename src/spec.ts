@@ -47,3 +47,8 @@ export const getEndpointSchema = (
   }
   return { method, path: apiPath, operation };
 };
+
+export const getComponentSchemas = (): Record<string, unknown> => {
+  const spec = loadSpec();
+  return (spec.components?.schemas ?? {}) as Record<string, unknown>;
+};

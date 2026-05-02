@@ -818,4 +818,173 @@ describe("cli integration", () => {
       expect(readStderr()).toContain("plugins get");
     });
   });
+
+  describe("--json validation", () => {
+    it("invalid payload (missing required) → exit 1, JSON on stderr, no API call", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      // No interceptor; disableNetConnect ensures any fetch attempt would fail.
+
+      const code = await main(["node", "kt", "record", "add", "--json", "{}"]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      const stderr = readStderr();
+      // 1 行に集約された JSON
+      const lines = stderr.trim().split("\n");
+      expect(lines).toHaveLength(1);
+      const parsed = JSON.parse(lines[0]);
+      expect(parsed.error).toBe("json_validation_failed");
+      expect(parsed.method).toBe("POST");
+      expect(parsed.path).toBe("/k/v1/record.json");
+      expect(Array.isArray(parsed.errors)).toBe(true);
+      expect(
+        parsed.errors.some(
+          (e: { keyword: string; params: { missingProperty?: string } }) =>
+            e.keyword === "required" && e.params.missingProperty === "app",
+        ),
+      ).toBe(true);
+    });
+
+    it("typo in top-level key surfaces additionalProperty name", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "add",
+        "--json",
+        '{"app":1,"rcord":{}}',
+      ]);
+
+      expect(code).toBe(1);
+      const parsed = JSON.parse(readStderr().trim());
+      expect(
+        parsed.errors.some(
+          (e: { keyword: string; params: { additionalProperty?: string } }) =>
+            e.keyword === "additionalProperties" &&
+            e.params.additionalProperty === "rcord",
+        ),
+      ).toBe(true);
+    });
+
+    it("--dry-run still validates; invalid → exit 1", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "add",
+        "--json",
+        "{}",
+        "--dry-run",
+      ]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      const parsed = JSON.parse(readStderr().trim());
+      expect(parsed.error).toBe("json_validation_failed");
+    });
+
+    it("--skip-validation: invalid payload still hits API (with stderr notice)", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = createValidatedPool(mockAgent, BASE_URL);
+      // 仕様逸脱の payload を実際に送信できることを確認
+      const SKIP_BODY = '{"app":1,"record":{}}';
+      pool
+        .intercept({
+          path: "/k/v1/record.json",
+          method: "POST",
+          body: SKIP_BODY,
+          headers: {
+            "X-Cybozu-API-Token": "test-token",
+            "Content-Type": "application/json",
+          },
+        })
+        .reply(200, { id: "1", revision: "1" });
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "add",
+        "--json",
+        SKIP_BODY,
+        "--skip-validation",
+      ]);
+
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStderr()).toContain("--skip-validation is in effect");
+    });
+
+    it("--schema short-circuits before validation runs (no validation error for empty json)", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+
+      const code = await main(["node", "kt", "record", "add", "--schema"]);
+
+      expect(code).toBe(0);
+      // schema が出ているはず
+      expect(readStdout()).toContain('"path":"/k/v1/record.json"');
+      expect(readStderr()).toBe("");
+    });
+
+    it("records delete: invalid query payload → exit 1 with json_validation_failed", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+
+      const code = await main([
+        "node",
+        "kt",
+        "records",
+        "delete",
+        "--json",
+        '{"app":1,"ids":"10,11"}',
+      ]);
+
+      expect(code).toBe(1);
+      const parsed = JSON.parse(readStderr().trim());
+      expect(parsed.error).toBe("json_validation_failed");
+      expect(parsed.method).toBe("DELETE");
+      expect(parsed.path).toBe("/k/v1/records.json");
+    });
+
+    it("bulk-request: requests wrap structure passes validation", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = createValidatedPool(mockAgent, BASE_URL);
+      const BULK_BODY = JSON.stringify({
+        requests: [
+          {
+            method: "POST",
+            api: "/k/v1/record.json",
+            payload: { app: 1, record: { 名前: { value: "x" } } },
+          },
+        ],
+      });
+      pool
+        .intercept({
+          path: "/k/v1/bulkRequest.json",
+          method: "POST",
+          body: BULK_BODY,
+          headers: {
+            "X-Cybozu-API-Token": "test-token",
+            "Content-Type": "application/json",
+          },
+        })
+        .reply(200, { results: [{ id: "1", revision: "1" }] });
+
+      const code = await main([
+        "node",
+        "kt",
+        "bulk-request",
+        "add",
+        "--json",
+        BULK_BODY,
+      ]);
+
+      expect(readStderr()).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+    });
+  });
 });

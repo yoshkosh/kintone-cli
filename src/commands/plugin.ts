@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
 import { attachEndpoint } from "../schema-option.js";
+import { validateJsonOrThrow } from "../validator.js";
 import {
   getGlobalOptions,
   noGuestSpace,
@@ -25,6 +26,7 @@ export const registerPluginCommands = (program: Command): void => {
       const global = getGlobalOptions(cmd);
       noGuestSpace(global, "plugin add", opts);
       const body = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
         dryRunOutput({ method: "POST", path: "/k/v1/plugin.json", body });
@@ -52,6 +54,7 @@ export const registerPluginCommands = (program: Command): void => {
       const global = getGlobalOptions(cmd);
       noGuestSpace(global, "plugin update", opts);
       const body = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
         dryRunOutput({ method: "PUT", path: "/k/v1/plugin.json", body });

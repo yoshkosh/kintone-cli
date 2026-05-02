@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
 import { attachEndpoint } from "../schema-option.js";
+import { validateJsonOrThrow } from "../validator.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
@@ -86,6 +87,7 @@ export const registerAppPluginsCommands = ({
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
         dryRunOutput({
@@ -123,6 +125,7 @@ export const registerAppPluginsCommands = ({
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
         dryRunOutput({

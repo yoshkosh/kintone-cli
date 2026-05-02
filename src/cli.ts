@@ -12,7 +12,11 @@ import { registerAppPluginsCommands } from "./commands/app-plugins.js";
 import { registerPluginCommands } from "./commands/plugin.js";
 import { registerBulkRequestCommands } from "./commands/bulk-request.js";
 import { registerStatisticsCommands } from "./commands/statistics.js";
-import { installSchemaOption } from "./schema-option.js";
+import {
+  installSchemaOption,
+  installSkipValidationOption,
+} from "./schema-option.js";
+import { JsonValidationError } from "./validator.js";
 
 export const createProgram = (): Command => {
   const program = new Command();
@@ -46,6 +50,7 @@ export const createProgram = (): Command => {
   registerStatisticsCommands({ program });
 
   installSchemaOption(program);
+  installSkipValidationOption(program);
 
   return program;
 };
@@ -63,6 +68,12 @@ export const main = async (
     // Honor err.exitCode so help/version stay at 0 instead of being coerced to 1.
     if (err instanceof CommanderError) {
       return err.exitCode;
+    }
+    if (err instanceof JsonValidationError) {
+      // NOTE: validation 失敗のみ JSON 形式で stderr 出力する。
+      // 引数不正・認証未設定等の他の CLI エラーは従来通りテキスト出力 (下の分岐)。
+      process.stderr.write(JSON.stringify(err.toPayload()) + "\n");
+      return 1;
     }
     if (err instanceof Error && err.name === "KintoneAPIError") {
       process.stderr.write(err.message + "\n");

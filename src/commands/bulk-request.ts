@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
 import { attachEndpoint } from "../schema-option.js";
+import { validateJsonOrThrow } from "../validator.js";
 import {
   getGlobalOptions,
   noGuestSpace,
@@ -25,6 +26,7 @@ export const registerBulkRequestCommands = (program: Command): void => {
       const global = getGlobalOptions(cmd);
       noGuestSpace(global, "bulk-request add", opts);
       const body = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
         dryRunOutput({

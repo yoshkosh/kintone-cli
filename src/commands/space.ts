@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
 import { attachEndpoint } from "../schema-option.js";
+import { validateJsonOrThrow } from "../validator.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
@@ -44,6 +45,7 @@ export const registerSpaceCommands = (program: Command): void => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
         dryRunOutput({ method: "PUT", path: "/k/v1/space.json", body });
@@ -101,6 +103,7 @@ export const registerSpaceCommands = (program: Command): void => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, bodyData);
 
       if (opts.dryRun) {
         dryRunOutput({
@@ -159,6 +162,7 @@ export const registerSpaceCommands = (program: Command): void => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, bodyData);
 
       if (opts.dryRun) {
         dryRunOutput({
@@ -196,6 +200,7 @@ export const registerSpaceCommands = (program: Command): void => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, bodyData);
 
       if (opts.dryRun) {
         dryRunOutput({
@@ -233,6 +238,7 @@ export const registerSpaceCommands = (program: Command): void => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, bodyData);
 
       if (opts.dryRun) {
         dryRunOutput({
@@ -267,6 +273,7 @@ export const registerSpaceCommands = (program: Command): void => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, bodyData);
 
       if (opts.dryRun) {
         dryRunOutput({
@@ -306,6 +313,7 @@ export const registerSpaceCommands = (program: Command): void => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, bodyData);
 
       if (opts.dryRun) {
         dryRunOutput({
@@ -348,6 +356,7 @@ export const registerSpaceCommands = (program: Command): void => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const bodyData = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, bodyData);
 
       if (opts.dryRun) {
         dryRunOutput({
@@ -388,6 +397,7 @@ export const registerSpaceCommands = (program: Command): void => {
       const global = getGlobalOptions(cmd);
       noGuestSpace(global, "guests add", opts);
       const bodyData = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, bodyData);
 
       if (opts.dryRun) {
         dryRunOutput({

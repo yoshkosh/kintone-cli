@@ -242,3 +242,29 @@
 - 動的引数なし `kt --schema`: 第一弾は対象スコープが曖昧（全エンドポイント？ ヘルプ？）なので保留。
 
 **参考**: `reports/schema-option-plan.md` v2、`reports/plan-review-cc.md`
+
+---
+
+## 2026-05-02 `--json` ペイロードのバリデーション
+
+**決定**: `--json` を持つ全エンドポイントコマンドで、`JSON.parse` 直後のペイロードを OpenAPI Spec の requestBody（DELETE 系のみ parameters）で検証する。Ajv (`strict: false, allErrors: true, coerceTypes: true, logger: false`) を runtime 依存に昇格して採用。`additionalProperties: false` はトップレベルにのみ注入し、`record` 配下のユーザー定義 field code は許容する。検証失敗時は **stderr に JSON 形式**で出力（`{ error: "json_validation_failed", method, path, errors }`）し exit 1。`--skip-validation` でバイパス可能だが、利用時は stderr に notice を出して常用化を発見できるようにする。`--dry-run` でもバリデーションは走る（dry-run の意味を「呼ばずに validate」に近づける）。`--schema` 指定時は `preAction` で early exit するため validation も走らない（副作用ゼロは維持）。
+
+**CLI エラー出力規約の例外**: 従来 CLI 側エラー（引数不正・認証未設定）はテキスト出力だが、validation 失敗のみ JSON 形式に拡張。CLI / API の弁別は `error` キーの有無で行う（API エラーは kintone のレスポンス JSON をそのまま透過するため `error` キーを持たない）。`JSON.parse` 失敗（不正 JSON）は構文ミスであり validation 違反とは性質が異なるため、引き続きテキスト出力。
+
+**実装**:
+- `src/endpoint-registry.ts` に `endpointMetaMap` / `attachEndpoint` / `walkAll` を切り出し、`schema-option.ts` と `validator.ts` 双方から共有（循環依存回避）。
+- `src/validator.ts` で `validateJsonOrThrow(cmd, opts, body, { mode })` を export。Ajv 実体・component schemas の `addSchema`・compiled validator のキャッシュは初回呼び出し時に lazy 初期化（`--schema` のみの経路では Ajv を一切ロードしない）。
+- `installSkipValidationOption(program)` を `cli.ts` で呼び、`walkAll` で `endpointMetaMap` 登録済かつ `--json` を持つコマンドに `--skip-validation` を一括注入する（個別追加を避け、新規 endpoint 追加時の取りこぼし防止）。
+- `coerceTypes` による mutation は `structuredClone(body)` 上に閉じる。実送信 payload は補正せず原型のまま `kintoneRequest` に渡す（kintone 側は文字列の数値も受容するため）。
+- `src/__test-helpers__/spec-validator.ts` は `validator.ts` の `compileForEndpoint` を内部利用する薄い wrapper に書き換え。guest path 正規化と `ids[i]` 逆展開と GET query 検証は test-helper 側に保持（runtime には流入させない）。
+
+**不採用案**:
+- `--skip-validation` を 31 コマンド個別に option 追加: 新規 endpoint で取りこぼしリスク。`installSkipValidationOption` 一括注入に統一。
+- `coerceTypes` を切って厳密化: kintone 側の柔軟な型受容と乖離し過剰検出になる。境界は `cli.test.ts` で fixture 化して可視化。
+- format 検証の有効化: kintone spec の `format` は `long` / `date-time` / `boolean` / `number` / `query` 等の非標準値が多く、`ajv-formats` も独自 format も登録しない方針。`logger: false` は format warning 抑制であって format 検証ではない。
+- レスポンス側の検証: kintone 側責任のため引き続きスコープ外（2026-04-16 ADR を踏襲）。
+- bulkRequest 内部の個別 `(method, api)` ↔ payload schema マッチング: spec が anyOf で 8 種列挙するのみで対応関係を表現していないため、本機能スコープ外。後続課題として `docs/ideas.md` に持ち込む。
+
+**ドキュメント表記と install ツールの差異**: ドキュメントは `yarn` 系で表記する一方、実 install / 実行は `pnpm-lock.yaml` 準拠（pnpm）で行う。プロジェクト CLAUDE.md の規約。
+
+**参考**: `reports/json-payload-validation-spec.md`、`docs/decisions.md` 2026-04-16「OpenAPI Spec 活用: リクエスト・コントラクト検証のみ採用」

@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../client.js";
 import { attachEndpoint } from "../schema-option.js";
+import { validateJsonOrThrow } from "../validator.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
@@ -104,6 +105,7 @@ export const registerRecordCommands = (
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
         dryRunOutput({ method: "POST", path: "/k/v1/record.json", body });
@@ -131,6 +133,7 @@ export const registerRecordCommands = (
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
         dryRunOutput({ method: "PUT", path: "/k/v1/record.json", body });
@@ -204,6 +207,7 @@ export const registerRecordCommands = (
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
         dryRunOutput({ method: "POST", path: "/k/v1/records.json", body });
@@ -231,6 +235,7 @@ export const registerRecordCommands = (
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const body = JSON.parse(opts.json);
+      validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
         dryRunOutput({ method: "PUT", path: "/k/v1/records.json", body });
@@ -258,6 +263,9 @@ export const registerRecordCommands = (
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       const parsed = JSON.parse(opts.json);
+      // NOTE: spec 上は parameters 経由 (in: query) のため query schema で検証。
+      // CLI は --json を params に展開する設計。
+      validateJsonOrThrow(cmd, opts, parsed, { mode: "query" });
 
       if (opts.dryRun) {
         dryRunOutput({

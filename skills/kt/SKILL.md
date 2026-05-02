@@ -229,6 +229,33 @@ If multiple auth methods are detected, a warning is shown. Use `--auth-type` to 
 | `--total-count` | `records get` | Include total count in response |
 | `--lang <lang>` | Some GET commands | Language: `default`, `en`, `zh`, `ja`, `user` |
 | `--schema` | All endpoint commands | Print the OpenAPI Spec for this endpoint as JSON. No API call, no auth required, required options skipped. |
+| `--skip-validation` | All `--json` commands | Bypass OpenAPI request body validation. Last-resort escape hatch (see "Payload validation" below). |
+
+## Payload validation
+
+Every `--json` payload is validated against the kintone OpenAPI Spec **before** the API is called. Missing required properties, type mismatches that can't be coerced, and extra top-level keys (typos like `rcord` vs `record`) are rejected with a JSON error on stderr and `exit 1`. The check runs even with `--dry-run`.
+
+```bash
+$ kt record add --json '{}'
+{"error":"json_validation_failed","method":"POST","path":"/k/v1/record.json","errors":[{"instancePath":"","keyword":"required","message":"must have required property 'app'","params":{"missingProperty":"app"}}]}
+$ echo $?
+1
+```
+
+The `params` field carries actionable hints:
+
+- `params.missingProperty` — name of the absent required key
+- `params.additionalProperty` — name of the offending typo (e.g. `"rcord"`)
+
+`record.<field code>` payloads are NOT inspected (kintone allows arbitrary user-defined field codes there); only top-level keys are tightened.
+
+### `--skip-validation` (last resort)
+
+Use only when the spec is wrong (out-of-date, over-strict) and the kintone API would actually accept the payload. A notice is printed to stderr each time, so the flag is easy to spot in logs. If you find yourself reaching for it repeatedly, file an issue against the spec rather than continuing to bypass.
+
+```bash
+kt record add --json '{"app":1,"experimental_field":"x","record":{}}' --skip-validation
+```
 
 ## Schema self-inspection
 

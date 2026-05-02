@@ -102,6 +102,8 @@ kt record add --json '{"app": 1, "records": [{"名前": {"value": "田中"}}]}'
 kt record get --app 1 --id 10
 ```
 
+`--json` で渡された payload は、API 呼び出し前に OpenAPI Spec の requestBody（DELETE 系は parameters）で検証される。必須欠落・型不一致・余分なトップレベルプロパティを事前に検出する。spec 側不整合などで誤検出された場合は `--skip-validation` で例外的にスキップできる（最終手段）。
+
 ## 認証
 
 ### 対応方式
@@ -145,13 +147,18 @@ Warning: Multiple auth methods detected. Using API token. Use --auth-type to spe
 ## エラー出力
 
 - **CLI側のエラー**（引数不正、認証情報未設定等）: stderrにテキスト出力
+- **CLI側のエラー（`--json` バリデーション失敗）**: stderr に **JSON** を出力（CLI/API の弁別は `error` キーの有無で行う）
 - **APIエラー**: stderrにkintoneのレスポンスJSONをそのまま透過
 - **exit code**: 全て `1`（成功時は `0`）
 
 ```bash
-# CLI側エラー
+# CLI側エラー（テキスト）
 $ kt record get
 Error: Missing required option: --app
+
+# CLI側エラー（JSON: --json バリデーション失敗のみ例外的に JSON 化）
+$ kt record add --json '{}'
+{"error":"json_validation_failed","method":"POST","path":"/k/v1/record.json","errors":[{"instancePath":"","keyword":"required","message":"must have required property 'app'","params":{"missingProperty":"app"}}]}
 
 # APIエラー
 $ kt record get --app 999
@@ -198,9 +205,9 @@ kt records get --app 1 --page-all > records.jsonl
 
 公式OpenAPI Spec: https://github.com/kintone/rest-api-spec
 
-コマンドの実装は**静的**（エンドポイントごとにコードを記述）とする。OpenAPI Specは以下の用途でランタイムに同梱・活用する（一部未実装）:
+コマンドの実装は**静的**（エンドポイントごとにコードを記述）とする。OpenAPI Specは以下の用途でランタイムに同梱・活用する:
 
-- `--json` ペイロードのバリデーション（API呼び出し前の検証、未実装）
+- `--json` ペイロードのバリデーション（API 呼び出し前の検証、`--skip-validation` で例外的にバイパス可）
 - `--schema` によるスキーマ自己検査の出力元
 - テスト生成の素材
 - spec更新時の差分検出（保守）
