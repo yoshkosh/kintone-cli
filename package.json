@@ -1,6 +1,6 @@
 {
   "name": "@yoshkosh/kintone-cli",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "kintone REST API CLI tool",
   "type": "module",
   "files": [
@@ -32,11 +32,11 @@
   },
   "license": "MIT",
   "dependencies": {
+    "ajv": "^8.18.0",
     "commander": "^14.0.3"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
-    "ajv": "^8.18.0",
     "typescript": "^5.9.3",
     "undici": "^8.1.0",
     "vitest": "^4.1.4",
