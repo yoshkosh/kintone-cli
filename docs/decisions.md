@@ -159,7 +159,7 @@
 - 夜間 CI による Tier 2 自動化: Secrets 運用が既存方針と不整合
 - モックのみ: multipart / cursor / 429 等、spec と実 API の乖離検知には実呼び出しが必要
 
-**参考**: `docs/phase4-test-strategy.md` v3 §1, §2
+**参考**: `reports/phase4-test-strategy.md` v3 §1, §2
 
 ---
 
@@ -175,7 +175,7 @@
 - MockAgent 単独 (`stubGlobal` なし): Node 22 では intercept されず実ネットワークに漏れる
 - サブプロセス起動方式: インプロセスより 1 桁遅く、デバッガが刺さらない
 
-**参考**: `docs/phase4-test-strategy.md` v3 §3, §4, `docs/phase4-slice-findings.md` H1〜H5
+**参考**: `reports/phase4-test-strategy.md` v3 §3, §4, `reports/phase4-slice-findings.md` H1〜H5
 
 ---
 
@@ -187,7 +187,7 @@
 
 **不採用案**: `test/` ディレクトリ集約。import が `../src/client.js` になるか path alias の追加が必要で、小規模 CLI では得るものが少ない。
 
-**参考**: `docs/phase4-test-strategy.md` v3 §4
+**参考**: `reports/phase4-test-strategy.md` v3 §4
 
 ---
 
@@ -201,7 +201,7 @@
 - エラーテスト全廃: `main()` の exit code 1 経路と `finally` クリーンアップ経路が未検証になる
 - 構造化アサーションを即採用: `KintoneAPIError` の構造化設計とセットで議論すべきで、テストだけ先行すると仕様外の決め打ちになる
 
-**参考**: `docs/phase4-test-strategy.md` v3 §4(c), https://cybozu.dev/ja/kintone/docs/rest-api/overview/kintone-rest-api-overview/
+**参考**: `reports/phase4-test-strategy.md` v3 §4(c), https://cybozu.dev/ja/kintone/docs/rest-api/overview/kintone-rest-api-overview/
 
 ---
 
@@ -218,4 +218,4 @@
 - `@stoplight/prism` などの完全 mock サーバ採用: in-test 用途で過剰
 - spec 取り込みを non-bundled で行う: external `$ref` 解決ロジックが複雑化するため bundled 版を前提とする
 
-**参考**: `docs/phase4-test-strategy.md` v3 §5, §6, §7
+**参考**: `reports/phase4-test-strategy.md` v3 §5, §6, §7
