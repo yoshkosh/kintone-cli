@@ -13,6 +13,22 @@ allowed-tools: Bash(npx:*) Bash(kt:*)
 > Run commands with `npx @yoshkosh/kintone-cli` (e.g. `npx @yoshkosh/kintone-cli record get --app 1 --id 1`).
 > All examples below use `kt` as shorthand — replace with `npx @yoshkosh/kintone-cli` if `kt` is not on PATH.
 
+## CRITICAL: Bash command formatting rules
+
+Claude Code's permission checker has security heuristics that force manual approval prompts. Avoid these patterns to keep `kt` commands auto-allowed. See: <https://github.com/anthropics/claude-code/issues/34379>
+
+1. **No `#` anywhere in the command string.** Treated as a comment delimiter even inside quotes. Don't add inline `#` comments — use the Bash tool's `description` parameter instead.
+2. **No `''` (consecutive single quotes) or `""` (consecutive double quotes).** Triggers the "potential obfuscation" check. Omit empty-value flags rather than passing `''`.
+   - WRONG: `kt records get --app 1 --query ''`
+   - RIGHT: `kt records get --app 1`
+   - `--json '{"app": 1, ...}'` is fine — the inner `"` characters aren't consecutive.
+3. **Only `| jq` for filtering — no `python3` or other downstream commands.** Single-quote-only `jq` expressions are safest.
+   - WRONG: `kt records get --app 1 | python3 -c "..."` (not allow-listed)
+   - RIGHT: `kt records get --app 1 | jq '.records[].id'`
+   - Non-ASCII field codes need `."名前"` syntax and embed `"` in the jq expression. This may still prompt once; accept it, or rename to ASCII via `--fields`.
+4. **No `||` or `&&` chains.** Run sequences (e.g. `--dry-run` first, then the real call) as separate Bash tool calls.
+5. **No file redirects (`>`, `>>`).** Process NDJSON / JSON output directly via `| jq`; don't write to files.
+
 ## Authentication
 
 The following environment variables must be available at runtime. They are managed by the user's environment and are NOT the agent's responsibility.

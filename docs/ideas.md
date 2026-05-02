@@ -63,16 +63,6 @@ GitHub Package Registry（private）で暫定公開している状態から、np
 
 **背景**: dogfooding 用の暫定措置。PAT トークンが残っているとセキュリティリスク。
 
-### SKILL.md に Claude Code Bash 制約セクション追加
-
-`skills/kt/SKILL.md` に、Claude Code の permission checker heuristics を回避するためのガイドを追加する。agent-slack の "CRITICAL: Bash command formatting rules" セクション（[参考レポート](../reports/agent-slack-analysis.md)）と同等の内容。
-
-- `#`、`''`/`""`、`&&`/`||`、`>` リダイレクトを避ける指針
-- 複数コマンドは別々の Bash tool call に分ける
-- `jq` パイプのみ推奨
-
-**目的**: エージェント実行時の承認ダイアログを減らす。
-
 ### llms.txt の配置
 
 `llmstxt.org` 規格に沿った `llms.txt` をリポジトリルートに配置し、npm パッケージの `files` にも含める。エージェントが「この CLI は何か」を短く発見できるようにする。
