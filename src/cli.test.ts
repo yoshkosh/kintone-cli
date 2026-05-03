@@ -949,7 +949,7 @@ describe("cli integration", () => {
       expect(parsed.path).toBe("/k/v1/records.json");
     });
 
-    it("bulk-request: requests wrap structure passes validation", async () => {
+    it("bulk-request I2: valid requests wrap structure passes validation", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
       const pool = createValidatedPool(mockAgent, BASE_URL);
       const BULK_BODY = JSON.stringify({
@@ -985,6 +985,164 @@ describe("cli integration", () => {
       expect(readStderr()).toBe("");
       expect(code).toBe(0);
       mockAgent.assertNoPendingInterceptors();
+    });
+
+    it("bulk-request I1: invalid sub-payload (typo) → exit 1, JSON on stderr, no API call", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      // No interceptor; disableNetConnect ensures any fetch attempt would fail.
+      const BAD_BODY = JSON.stringify({
+        requests: [
+          {
+            method: "POST",
+            api: "/k/v1/record.json",
+            payload: { rcord: {} },
+          },
+        ],
+      });
+
+      const code = await main([
+        "node",
+        "kt",
+        "bulk-request",
+        "add",
+        "--json",
+        BAD_BODY,
+      ]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      const lines = readStderr().trim().split("\n");
+      expect(lines).toHaveLength(1);
+      const parsed = JSON.parse(lines[0]);
+      expect(parsed.error).toBe("json_validation_failed");
+      expect(parsed.method).toBe("POST");
+      expect(parsed.path).toBe("/k/v1/bulkRequest.json");
+      // 'app' 必須欠落と 'rcord' 余分プロパティが両方積まれているはず
+      expect(
+        parsed.errors.some(
+          (e: {
+            instancePath: string;
+            keyword: string;
+            params: { missingProperty?: string };
+          }) =>
+            e.instancePath === "/requests/0/payload" &&
+            e.keyword === "required" &&
+            e.params.missingProperty === "app",
+        ),
+      ).toBe(true);
+      expect(
+        parsed.errors.some(
+          (e: {
+            instancePath: string;
+            keyword: string;
+            params: { additionalProperty?: string };
+          }) =>
+            e.instancePath === "/requests/0/payload" &&
+            e.keyword === "additionalProperties" &&
+            e.params.additionalProperty === "rcord",
+        ),
+      ).toBe(true);
+    });
+
+    it("bulk-request I1b: unknown (method, api) → bulkRequestUnknownSubapi", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const BAD_BODY = JSON.stringify({
+        requests: [
+          {
+            method: "POST",
+            api: "/k/v1/space/members.json",
+            payload: {},
+          },
+        ],
+      });
+
+      const code = await main([
+        "node",
+        "kt",
+        "bulk-request",
+        "add",
+        "--json",
+        BAD_BODY,
+      ]);
+
+      expect(code).toBe(1);
+      const parsed = JSON.parse(readStderr().trim());
+      expect(
+        parsed.errors.some(
+          (e: { keyword: string }) => e.keyword === "bulkRequestUnknownSubapi",
+        ),
+      ).toBe(true);
+    });
+
+    it("bulk-request I3: --skip-validation lets X2-violating sub-payload through to API", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = createValidatedPool(mockAgent, BASE_URL);
+      // NOTE: payload に余分な `foo` を混ぜている。CLI 側の X2 二段検証 (compileForBulkSub の
+      // tighten) は弾くが、test-helper の compileForEndpoint は anyOf のみで sub-schema
+      // tighten を行わないため通る。これで「X2 で弾かれる payload を skip でバイパス」
+      // できることを確認できる。
+      const SKIP_BODY = JSON.stringify({
+        requests: [
+          {
+            method: "POST",
+            api: "/k/v1/record.json",
+            payload: { app: 1, record: {}, foo: "x" },
+          },
+        ],
+      });
+      pool
+        .intercept({
+          path: "/k/v1/bulkRequest.json",
+          method: "POST",
+          body: SKIP_BODY,
+          headers: {
+            "X-Cybozu-API-Token": "test-token",
+            "Content-Type": "application/json",
+          },
+        })
+        .reply(200, { results: [{}] });
+
+      const code = await main([
+        "node",
+        "kt",
+        "bulk-request",
+        "add",
+        "--json",
+        SKIP_BODY,
+        "--skip-validation",
+      ]);
+
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStderr()).toContain("--skip-validation is in effect");
+    });
+
+    it("bulk-request I4: --dry-run still validates; invalid → exit 1", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const BAD_BODY = JSON.stringify({
+        requests: [
+          {
+            method: "POST",
+            api: "/k/v1/record.json",
+            payload: { rcord: {} },
+          },
+        ],
+      });
+
+      const code = await main([
+        "node",
+        "kt",
+        "bulk-request",
+        "add",
+        "--json",
+        BAD_BODY,
+        "--dry-run",
+      ]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      const parsed = JSON.parse(readStderr().trim());
+      expect(parsed.error).toBe("json_validation_failed");
     });
   });
 });

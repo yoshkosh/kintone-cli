@@ -249,6 +249,24 @@ The `params` field carries actionable hints:
 
 `record.<field code>` payloads are NOT inspected (kintone allows arbitrary user-defined field codes there); only top-level keys are tightened.
 
+### `bulk-request add` (per-sub-payload validation)
+
+Inside `bulk-request add --json`, **each `requests[i].payload` is validated against the sub-schema chosen by `(method, api)`**, not just the outer `anyOf`. This catches typos and wrong-shape mixups (e.g. sending a `record add` payload with `method: "DELETE"`):
+
+```bash
+$ kt bulk-request add --json '{"requests":[{"method":"POST","api":"/k/v1/record.json","payload":{"rcord":{}}}]}'
+{"error":"json_validation_failed","method":"POST","path":"/k/v1/bulkRequest.json","errors":[
+  {"instancePath":"/requests/0/payload","keyword":"required","message":"must have required property 'app'","params":{"missingProperty":"app"}},
+  {"instancePath":"/requests/0/payload","keyword":"additionalProperties","message":"must NOT have additional properties","params":{"additionalProperty":"rcord"}}
+]}
+```
+
+Additional rules specific to `bulk-request add`:
+
+- The `(method, api)` pair must match one of the 8 supported sub-APIs (record/records POST/PUT/DELETE, record/records status PUT, record assignees PUT). An unknown pair is rejected with `keyword: "bulkRequestUnknownSubapi"` (`params.method` / `params.api` carry the offending values).
+- `method` must be upper-case (`POST` / `PUT` / `DELETE`). Lower-case `method: "post"` is rejected as `bulkRequestUnknownSubapi`.
+- Each `requests[i]` entry must contain only `{method, api, payload}`. Extra keys (e.g. `comment`) are rejected at `/requests/i` with `additionalProperties`.
+
 ### `--skip-validation` (last resort)
 
 Use only when the spec is wrong (out-of-date, over-strict) and the kintone API would actually accept the payload. A notice is printed to stderr each time, so the flag is easy to spot in logs. If you find yourself reaching for it repeatedly, file an issue against the spec rather than continuing to bypass.

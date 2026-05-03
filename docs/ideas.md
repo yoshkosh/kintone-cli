@@ -22,12 +22,6 @@
 
 ## テスト・品質
 
-### bulkRequest 等での spec 厳密度の追加検証
-
-probe では 3 エンドポイント（`record GET/POST`、`records GET`）のみ確認済。bulkRequest のような複雑な requestBody で spec の検出力が落ちないかを実物のテスト中に観察する。
-
-`--json` バリデーション機能（2026-05-02 採用）の延長として、bulkRequest の `requests[].payload` に対して `(method, api)` から正確な sub-schema を引いて検証する処理を追加する案。spec 上は `BulkRequestPostRequestForm.payload` が anyOf で 8 種の sub-schema を列挙しているのみで `method`/`api` との対応は表現されていないため、CLI 側に `(method, api) → schema name` の マッピングを置く必要がある。
-
 ### エラーレスポンスの構造化アサーション（Layer B）
 
 現状エラーテストは Layer A（透過出力の単純検証）のみ。`KintoneAPIError` の構造化設計とセットで、`{id, code, message}` 3 フィールドを構造化アサーションする Layer B を導入する。

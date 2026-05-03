@@ -268,3 +268,39 @@
 **ドキュメント表記と install ツールの差異**: ドキュメントは `yarn` 系で表記する一方、実 install / 実行は `pnpm-lock.yaml` 準拠（pnpm）で行う。プロジェクト CLAUDE.md の規約。
 
 **参考**: `reports/json-payload-validation-spec.md`、`docs/decisions.md` 2026-04-16「OpenAPI Spec 活用: リクエスト・コントラクト検証のみ採用」
+
+---
+
+## 2026-05-03 bulkRequest 内部 payload の sub-schema 検証
+
+**決定**: `bulk-request add --json` のペイロードに対して、`requests[i].payload` を `(method, api)` から決まる sub-schema で個別検証する **二段検証 (X2)** を採用する。トップレベル schema は **`payload.anyOf` を外して「外形のみ」に弱め**、payload 検証は二段目に全委譲する。`requests[i]` 各 entry には `additionalProperties: false` を注入して entry レベルの余分プロパティ (`{method, api, payload, comment}` 等) も検出する。`(method, api)` → sub-schema 名のマップは `src/bulk-request-schemas.ts` の `BULK_SUB_API_MAP` (8 エントリ) として明示的にリテラル定数で持つ。`method` は `POST/PUT/DELETE` の完全一致 lookup のみ許容し、lower-case (例: `post`) は `bulkRequestUnknownSubapi` として弾く。
+
+**理由**: 既存の anyOf-only 検証では `record` 用 payload に `BulkRequestPostRecordsDeleteForm` 互換の偶然な構造が混入しても通ってしまい、エラーメッセージも「anyOf のどれにも一致しない」止まりで AI エージェントが原因特定しづらい。プロジェクト CLAUDE.md の「正確性を実装の簡易さより優先」原則に直結する。
+
+**X2 採用の根拠** (代替案: トップ既存維持 + sub も走らせる X1、ajv カスタムキーワード等):
+
+- X1 は同じ payload に対して anyOf 8 種違反 + sub-schema 詳細違反が両方積まれて重複ノイズが多い
+- X2 はエラー UX が一貫する (unknown も typo も二段目だけが出す)。`payload: {}` のような unknown ケースも二段目に到達できる
+- ajv カスタムキーワード方式は spec が discriminator を使っていないため独自規約が増える
+
+**実装**:
+- `src/bulk-request-schemas.ts` で `BULK_SUB_API_MAP: ReadonlyMap<string, string>` (8 エントリ) と `resolveBulkSubSchema(method, api)` を export
+- `src/validator.ts` に以下を追加:
+  - `compileForBulkSub(name)`: `getComponentSchemas()[name]` を **clone** → `tightenTopLevel` → `getAjv().compile`、`bulk:${name}` でキャッシュ
+  - `compileForBulkTop()`: bulkRequest top schema を clone → `BulkRequestPostRequestForm` を inline 展開して payload を `{type:"object"}` に縮め、`additionalProperties:false` を注入 → `tightenTopLevel`、`bulk:top` でキャッシュ
+  - `validateBulkRequestSubPayloads(data)`: `requests[]` を走査し、`(method, api)` 不明なら `bulkRequestUnknownSubapi` を 1 件積む (params に method/api を載せる)。一致したら `compileForBulkSub` で payload 検証し、`/requests/i/payload${ajvInstancePath}` の単純連結で entries を返す
+  - `JsonValidationError.fromEntries(method, apiPath, entries)` static factory を追加 (top + sub の合算 entries を 1 つの例外にまとめる)
+  - `validateJsonOrThrow` の末尾で `meta` が `POST /k/v1/bulkRequest.json` のときだけ X2 専用パスへ分岐
+- マップ整合性は `src/spec.test.ts` の S1 (`anyOf` の `$ref` 名集合 == `BULK_SUB_API_MAP` の値集合) と S2 (`Map.size == 8`) で検査
+
+**不採用案**:
+- spec 由来のマップ自動抽出 (命名規則ベースで sub-schema 名 → `(method, api)` を逆引き): spec 命名が崩れた瞬間に黙って壊れる。明示的なリテラル定数の方が予測可能性が高い
+- spec 動的書き換え (`if (method=X, api=Y) then $ref=...` で組み直す): 認知負荷が高くエラーパスが読みにくい
+- 二段目を呼ばずに anyOf 由来エラーだけで済ます: 「payload は anyOf のどれにも一致しない」止まりで AI が原因特定しづらい (本機能の動機そのもの)
+- bulkRequest 専用 `--skip-bulk-validation` の新設: 個別 sub-request だけ skip するユースケースは想像しにくく、既存 `--skip-validation` で十分
+- spec 自体が表現していない制約 (PUT 系の `id`/`updateKey` 二者択一、`requests` 件数 20 上限) の CLI 側先回り検証: spec 一次ソース原則と整合しない (kintone 側で明確なエラーが返る)
+- `record.<field code>` 配下のユーザー定義フィールド値検証: `tightenTopLevel` がトップだけに発火する設計を踏襲。アプリスキーマ取得との連携は別課題
+
+**X2 採用前の妥当性ゲート**: 着手前に `experiment/bulk-request-spec-probe.mjs` で 8 sub-schema を `tightenTopLevel` 注入後に検証し、必須欠如・型違反・余分プロパティの 3 軸 24 ケース全てを検出 (24/24)。`reports/bulk-request-validation-findings.md` に記録。
+
+**参考**: `reports/bulk-request-validation-plan.md`、`reports/bulk-request-validation-findings.md`、上の 2026-05-02「`--json` ペイロードのバリデーション」
