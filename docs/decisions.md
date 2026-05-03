@@ -304,3 +304,20 @@
 **X2 採用前の妥当性ゲート**: 着手前に `experiment/bulk-request-spec-probe.mjs` で 8 sub-schema を `tightenTopLevel` 注入後に検証し、必須欠如・型違反・余分プロパティの 3 軸 24 ケース全てを検出 (24/24)。`reports/bulk-request-validation-findings.md` に記録。
 
 **参考**: `reports/bulk-request-validation-plan.md`、`reports/bulk-request-validation-findings.md`、上の 2026-05-02「`--json` ペイロードのバリデーション」
+
+---
+
+## 2026-05-03 最小 Node を 22 に設定
+
+**決定**: `package.json` の `engines.node` を `>=22` とする。0.6.0 の npm 公開と同時に明示する。
+
+**理由**:
+- ランタイムで Node の **built-in `fetch`** に依存している（`undici` を runtime には載せていない）。`fetch` は Node 18 で experimental として導入され、Node 21 で stable 化した。Node 22 は LTS でこれを引き継ぐ最初のラインであり、`fetch` を要件として宣言する最低ラインを 22 に置くのが素直。
+- Node 20 LTS は **2026-04-30 に active maintenance を終了** し security メンテのみとなる。新規プロジェクトとして公開するタイミングで Node 20 を最小に据える積極的理由がない。
+- AI ツール群の現場には Node 20.x が残っているが、README で「`nvm use 22` 等で切り替え」を案内する方針（リリース計画 A2）。
+
+**不採用案**:
+- `>=20`: 上記理由により built-in fetch / MockAgent の挙動差を巻き取る価値が薄い。
+- `>=22.11`（22 LTS の特定マイナー固定）: マイナー粒度の刻みは依存上の必然がない。
+
+**参考**: `prompts/release-plan.md` HIGH 8

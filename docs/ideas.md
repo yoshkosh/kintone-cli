@@ -48,7 +48,3 @@ GitHub Package Registry（private）で暫定公開している状態から、np
 - `package.json` の `publishConfig` を変更または削除
 
 **背景**: dogfooding 用の暫定措置。PAT トークンが残っているとセキュリティリスク。
-
-### llms.txt の配置
-
-`llmstxt.org` 規格に沿った `llms.txt` をリポジトリルートに配置し、npm パッケージの `files` にも含める。エージェントが「この CLI は何か」を短く発見できるようにする。
