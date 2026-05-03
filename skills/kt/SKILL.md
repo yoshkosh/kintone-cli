@@ -334,6 +334,6 @@ kt app acl get --app 42
 kt space get --id 1
 kt space members get --id 1
 
-# Bulk request
-kt bulk-request add --dry-run --json '{"requests": [{"method": "GET", "api": "/k/v1/record.json", "payload": {"app": 1, "id": 1}}]}'
+# Bulk request — accepts only 8 write sub-APIs: record POST/PUT, records POST/PUT/DELETE, record/records status PUT, record assignees PUT. GET is rejected.
+kt bulk-request add --dry-run --json '{"requests": [{"method": "POST", "api": "/k/v1/record.json", "payload": {"app": 1, "record": {"名前": {"value": "新規"}}}}]}'
 ```
