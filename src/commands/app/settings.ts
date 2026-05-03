@@ -1,15 +1,26 @@
 import { Command } from "commander";
-import { kintoneRequest } from "../client.js";
-import { attachEndpoint } from "../schema-option.js";
-import { validateJsonOrThrow } from "../validator.js";
+import { kintoneRequest } from "../../client.js";
+import { attachEndpoint } from "../../schema-option.js";
+import { validateJsonOrThrow } from "../../validator.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
   writeJson,
   dryRunOutput,
   requireOpts,
-} from "./shared.js";
+} from "../shared.js";
 
+// NOTE: API マップ階層との対応:
+//   - settings        → アプリ／一般設定
+//   - admin-notes     → アプリ／アプリ情報（マップ上は別セクション。ただし
+//                       同一フォーマット (live GET + preview GET/PUT) のためテーブル一貫性を
+//                       優先してここに同居させる。§1.2 例外）
+//   - status          → アプリ／一般設定（プロセス管理）
+//   - views           → アプリ／一覧
+//   - reports         → アプリ／グラフ
+//   - notifications-* → アプリ／通知（3 種）
+//   - actions         → アプリ／その他
+//   - customize       → アプリ／カスタマイズ・サービス連携
 type AppSettingDef = {
   subcommand: string;
   description: string;
@@ -19,6 +30,13 @@ type AppSettingDef = {
 };
 
 const APP_SETTINGS: AppSettingDef[] = [
+  {
+    subcommand: "settings",
+    description: "App general settings",
+    livePath: "/k/v1/app/settings.json",
+    previewPath: "/k/v1/preview/app/settings.json",
+    hasLang: true,
+  },
   {
     subcommand: "views",
     description: "App views",

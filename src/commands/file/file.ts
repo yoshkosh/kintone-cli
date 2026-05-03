@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { Command } from "commander";
-import { resolveAuth, buildAuthHeaders } from "../auth.js";
-import { getBaseUrl, buildPath } from "../client.js";
-import { attachEndpoint } from "../schema-option.js";
-import { getGlobalOptions, toGuestSpaceId, requireOpts } from "./shared.js";
+import { resolveAuth, buildAuthHeaders } from "../../auth.js";
+import { getBaseUrl, buildPath } from "../../client.js";
+import { attachEndpoint } from "../../schema-option.js";
+import { getGlobalOptions, toGuestSpaceId, requireOpts } from "../shared.js";
 
 export const registerFileCommands = (program: Command): void => {
   const file = program

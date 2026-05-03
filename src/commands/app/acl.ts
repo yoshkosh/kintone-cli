@@ -1,14 +1,18 @@
 import { Command } from "commander";
-import { kintoneRequest } from "../client.js";
-import { attachEndpoint } from "../schema-option.js";
-import { validateJsonOrThrow } from "../validator.js";
+import { kintoneRequest } from "../../client.js";
+import { attachEndpoint } from "../../schema-option.js";
+import { validateJsonOrThrow } from "../../validator.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
   writeJson,
   dryRunOutput,
   requireOpts,
-} from "./shared.js";
+} from "../shared.js";
+
+// NOTE: app / field / record の ACL は API マップ「アプリ／アクセス権」セクション配下のため
+// 本ファイル一箇所で集約管理する。CLI 階層との不一致 (field-acl はトップレベル、record-acl は
+// preview 配下に直接ぶら下がる) は意図的でマップ階層に従っている。
 
 const registerAclGet = ({
   parent,
@@ -81,7 +85,7 @@ const registerAclUpdate = ({
   attachEndpoint(cmd, { method: "PUT", path });
 };
 
-export const registerAclCommands = ({
+export const registerAppAclCommands = ({
   program,
   record,
   app,

@@ -1,16 +1,20 @@
 import { Command } from "commander";
-import { kintoneRequest } from "../client.js";
-import { attachEndpoint } from "../schema-option.js";
-import { validateJsonOrThrow } from "../validator.js";
+import { kintoneRequest } from "../../client.js";
+import { attachEndpoint } from "../../schema-option.js";
+import { validateJsonOrThrow } from "../../validator.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
   writeJson,
   dryRunOutput,
   requireOpts,
-} from "./shared.js";
+} from "../shared.js";
 
-export const registerCommentCommands = (record: Command): void => {
+export const registerCommentCommands = ({
+  record,
+}: {
+  record: Command;
+}): void => {
   const comment = record
     .command("comment")
     .description("Comment operations (/k/v1/record/comment)");

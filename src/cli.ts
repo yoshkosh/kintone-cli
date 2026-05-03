@@ -1,17 +1,29 @@
 import { Command, CommanderError } from "commander";
-import { registerRecordCommands } from "./commands/record.js";
-import { registerPreviewCommands } from "./commands/preview.js";
-import { registerFileCommands } from "./commands/file.js";
-import { registerAppCommands } from "./commands/app.js";
-import { registerAclCommands } from "./commands/acl.js";
-import { registerCommentCommands } from "./commands/comment.js";
-import { registerStatusCommands } from "./commands/status.js";
-import { registerSpaceCommands } from "./commands/space.js";
-import { registerAppSettingsCommands } from "./commands/app-settings.js";
-import { registerAppPluginsCommands } from "./commands/app-plugins.js";
-import { registerPluginCommands } from "./commands/plugin.js";
-import { registerBulkRequestCommands } from "./commands/bulk-request.js";
-import { registerStatisticsCommands } from "./commands/statistics.js";
+// record/
+import { registerRecordCommands } from "./commands/record/record.js";
+import { registerRecordsCommands } from "./commands/record/records.js";
+import { registerCommentCommands } from "./commands/record/comment.js";
+import { registerProcessCommands } from "./commands/record/process.js";
+import { registerAclEvaluateCommands } from "./commands/record/acl-evaluate.js";
+import { registerBulkRequestCommands } from "./commands/record/bulk-request.js";
+// file/
+import { registerFileCommands } from "./commands/file/file.js";
+// app/
+import { registerAppCommands } from "./commands/app/app.js";
+import { registerAppsCommands } from "./commands/app/apps.js";
+import { registerAppFormFieldsCommands } from "./commands/app/form-fields.js";
+import { registerAppFormLayoutCommands } from "./commands/app/form-layout.js";
+import { registerAppSettingsCommands } from "./commands/app/settings.js";
+import { registerAppDeployCommands } from "./commands/app/deploy.js";
+import { registerAppPluginsCommands } from "./commands/app/plugins.js";
+import { registerAppAclCommands } from "./commands/app/acl.js";
+import { registerAppMoveCommands } from "./commands/app/move.js";
+// space/
+import { registerSpaceCommands } from "./commands/space/space.js";
+import { registerThreadCommands } from "./commands/space/thread.js";
+import { registerGuestsCommands } from "./commands/space/guests.js";
+// plugin/
+import { registerPluginCommands } from "./commands/plugin/plugin.js";
 import {
   installSchemaOption,
   installSkipValidationOption,
@@ -34,20 +46,39 @@ export const createProgram = (): Command => {
   const preview = program
     .command("preview")
     .description("Preview (pre-live) operations (/k/v1/preview)");
+  const previewApp = preview
+    .command("app")
+    .description("Preview app operations");
 
-  const { record, records } = registerRecordCommands(program);
-  registerCommentCommands(record);
-  registerStatusCommands({ record, records });
-  const { previewApp } = registerPreviewCommands(preview);
-  registerFileCommands(program);
-  const { app } = registerAppCommands(program);
-  registerAclCommands({ program, record, app, preview, previewApp });
-  registerAppSettingsCommands({ app, previewApp });
-  registerAppPluginsCommands({ app, previewApp });
-  registerSpaceCommands(program);
-  registerPluginCommands(program);
+  // record
+  const { record } = registerRecordCommands(program);
+  const { records } = registerRecordsCommands(program);
+  registerCommentCommands({ record });
+  registerProcessCommands({ record, records });
+  registerAclEvaluateCommands({ records });
   registerBulkRequestCommands(program);
-  registerStatisticsCommands({ program });
+
+  // file
+  registerFileCommands(program);
+
+  // app
+  const { app } = registerAppCommands({ program, previewApp });
+  registerAppsCommands(program);
+  registerAppFormFieldsCommands({ app, previewApp });
+  registerAppFormLayoutCommands({ app, previewApp });
+  registerAppSettingsCommands({ app, previewApp });
+  registerAppDeployCommands({ previewApp });
+  registerAppPluginsCommands({ app, previewApp });
+  registerAppAclCommands({ program, record, app, preview, previewApp });
+  registerAppMoveCommands({ app });
+
+  // space
+  const { space } = registerSpaceCommands(program);
+  registerThreadCommands({ space });
+  registerGuestsCommands({ program, space });
+
+  // plugin
+  registerPluginCommands(program);
 
   installSchemaOption(program);
   installSkipValidationOption(program);

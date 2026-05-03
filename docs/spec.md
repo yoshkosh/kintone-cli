@@ -222,29 +222,54 @@ kt records get --app 1 --page-all > records.jsonl
 
 ## ファイル構成
 
+API マップ（`prompts/kintone-rest-api-map.md`）の階層構造に揃えて、`src/commands/`配下を機能別サブディレクトリに分割している。
+
 ```
 src/
-  index.ts              エントリーポイント
-  auth.ts               認証モジュール
-  client.ts             HTTPクライアント
+  index.ts                   エントリーポイント
+  auth.ts                    認証モジュール
+  client.ts                  HTTPクライアント
+  cli.ts                     CLIオーケストレーション（registerXxxCommands を順序立てて呼ぶ）
+  endpoint-registry.ts       Command -> EndpointMeta マップ
+  schema-option.ts           --schema / --skip-validation 自動付与
+  validator.ts               JSON validation（OpenAPI Spec 準拠）
+  spec.ts / spec.json        OpenAPI Spec ローダ／同梱バンドル
   commands/
-    shared.ts           共通ヘルパー
-    record.ts           record/records コマンド
-    comment.ts          record comment/comments コマンド
-    status.ts           record status/assignees, records acl-evaluate コマンド
-    preview.ts          preview app deploy/form-fields/add/settings/form-layout コマンド
-    app.ts              app/apps コマンド
-    acl.ts              ACL コマンド（live + preview）
-    app-settings.ts     アプリ設定9種（テーブル駆動、live GET + preview GET/PUT）
-    app-plugins.ts      アプリプラグイン + app move コマンド
-    space.ts            space/thread/template/guests コマンド
-    plugin.ts           システムプラグイン管理コマンド
-    bulk-request.ts     バルクリクエストコマンド
-    statistics.ts       統計APIコマンド
-    file.ts             file get/add コマンド
+    shared.ts                共通ヘルパ
+    record/                  マップ「レコード」
+      record.ts                 単数レコード（GET/POST/PUT /k/v1/record）
+      records.ts                複数レコード（GET/POST/PUT/DELETE /k/v1/records）+ cursor 内蔵
+      comment.ts                レコードコメント
+      process.ts                プロセス管理（status/assignees, records/status）
+      acl-evaluate.ts           records/acl/evaluate（その他）
+      bulk-request.ts           bulkRequest（その他）
+    file/                    マップ「ファイル」
+      file.ts                   file get/add
+    app/                     マップ「アプリ」
+      app.ts                    app GET（live）+ preview app POST
+      apps.ts                   apps GET + apps statistics（CLIトップレベル）
+      form-fields.ts            live GET + preview GET/POST/PUT/DELETE
+      form-layout.ts            live GET + preview GET/PUT
+      settings.ts               9種設定の live GET + preview GET/PUT（テーブル駆動）
+      deploy.ts                 preview app deploy
+      plugins.ts                live + preview app plugins
+      acl.ts                    app/field/record の ACL（live + preview）
+      move.ts                   app move
+    space/                   マップ「スペース」
+      space.ts                  space, members, body, template/space, spaces statistics
+      thread.ts                 space thread, thread comment
+      guests.ts                 space guests + 全社ゲスト管理
+    plugin/                  マップ「プラグイン（システム）」
+      plugin.ts                 plugin / plugins / plugins required
 skills/
-  kt/SKILL.md           AIエージェント向け利用ガイド（Agent Skills仕様準拠）
+  kt/SKILL.md                AIエージェント向け利用ガイド（Agent Skills仕様準拠）
 ```
+
+### register 関数の規約
+
+- 親 Command を生成する関数は **戻り値で親 `Command` を返す**。子コマンド register 関数は引数で親を受け取る（`program` 直接アクセス禁止）。
+- `apps` / `spaces` は CLI 階層上トップレベル（`app` / `space` の兄弟）。
+- `preview` 親コマンドと `previewApp = preview.command("app")` は `cli.ts` で生成し、必要な register 関数に渡す。
 
 ## SKILL.md
 

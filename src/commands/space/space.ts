@@ -1,7 +1,7 @@
 import { Command } from "commander";
-import { kintoneRequest } from "../client.js";
-import { attachEndpoint } from "../schema-option.js";
-import { validateJsonOrThrow } from "../validator.js";
+import { kintoneRequest } from "../../client.js";
+import { attachEndpoint } from "../../schema-option.js";
+import { validateJsonOrThrow } from "../../validator.js";
 import {
   getGlobalOptions,
   toGuestSpaceId,
@@ -9,9 +9,11 @@ import {
   dryRunOutput,
   noGuestSpace,
   requireOpts,
-} from "./shared.js";
+} from "../shared.js";
 
-export const registerSpaceCommands = (program: Command): void => {
+export const registerSpaceCommands = (
+  program: Command,
+): { space: Command; spaces: Command } => {
   const space = program
     .command("space")
     .description("Space operations (/k/v1/space)");
@@ -187,158 +189,9 @@ export const registerSpaceCommands = (program: Command): void => {
     path: "/k/v1/space/members.json",
   });
 
-  // --- space guests ---
-  const guests = space.command("guests").description("Space guest operations");
-
-  // PUT /k/v1/space/guests.json
-  const guestsUpdate = guests
-    .command("update")
-    .description("Update space guests")
-    .option("--json <payload>", "Raw JSON payload")
-    .option("--dry-run", "Validate without executing")
-    .action(async (opts, cmd) => {
-      requireOpts(opts, ["json"]);
-      const global = getGlobalOptions(cmd);
-      const bodyData = JSON.parse(opts.json);
-      validateJsonOrThrow(cmd, opts, bodyData);
-
-      if (opts.dryRun) {
-        dryRunOutput({
-          method: "PUT",
-          path: "/k/v1/space/guests.json",
-          body: bodyData,
-        });
-        return;
-      }
-
-      const result = await kintoneRequest({
-        method: "PUT",
-        path: "/k/v1/space/guests.json",
-        body: bodyData,
-        authType: global.authType,
-        guestSpaceId: toGuestSpaceId(global),
-      });
-      writeJson(result);
-    });
-  attachEndpoint(guestsUpdate, {
-    method: "PUT",
-    path: "/k/v1/space/guests.json",
-  });
-
-  // --- space thread ---
-  const thread = space.command("thread").description("Space thread operations");
-
-  // POST /k/v1/space/thread.json
-  const threadAdd = thread
-    .command("add")
-    .description("Create a thread")
-    .option("--json <payload>", "Raw JSON payload")
-    .option("--dry-run", "Validate without executing")
-    .action(async (opts, cmd) => {
-      requireOpts(opts, ["json"]);
-      const global = getGlobalOptions(cmd);
-      const bodyData = JSON.parse(opts.json);
-      validateJsonOrThrow(cmd, opts, bodyData);
-
-      if (opts.dryRun) {
-        dryRunOutput({
-          method: "POST",
-          path: "/k/v1/space/thread.json",
-          body: bodyData,
-        });
-        return;
-      }
-
-      const result = await kintoneRequest({
-        method: "POST",
-        path: "/k/v1/space/thread.json",
-        body: bodyData,
-        authType: global.authType,
-        guestSpaceId: toGuestSpaceId(global),
-      });
-      writeJson(result);
-    });
-  attachEndpoint(threadAdd, {
-    method: "POST",
-    path: "/k/v1/space/thread.json",
-  });
-
-  // PUT /k/v1/space/thread.json
-  const threadUpdate = thread
-    .command("update")
-    .description("Update a thread")
-    .option("--json <payload>", "Raw JSON payload")
-    .option("--dry-run", "Validate without executing")
-    .action(async (opts, cmd) => {
-      requireOpts(opts, ["json"]);
-      const global = getGlobalOptions(cmd);
-      const bodyData = JSON.parse(opts.json);
-      validateJsonOrThrow(cmd, opts, bodyData);
-
-      if (opts.dryRun) {
-        dryRunOutput({
-          method: "PUT",
-          path: "/k/v1/space/thread.json",
-          body: bodyData,
-        });
-        return;
-      }
-
-      const result = await kintoneRequest({
-        method: "PUT",
-        path: "/k/v1/space/thread.json",
-        body: bodyData,
-        authType: global.authType,
-        guestSpaceId: toGuestSpaceId(global),
-      });
-      writeJson(result);
-    });
-  attachEndpoint(threadUpdate, {
-    method: "PUT",
-    path: "/k/v1/space/thread.json",
-  });
-
-  // --- space thread comment ---
-  const threadComment = thread
-    .command("comment")
-    .description("Thread comment operations");
-
-  // POST /k/v1/space/thread/comment.json
-  const threadCommentAdd = threadComment
-    .command("add")
-    .description("Add a thread comment")
-    .option("--json <payload>", "Raw JSON payload")
-    .option("--dry-run", "Validate without executing")
-    .action(async (opts, cmd) => {
-      requireOpts(opts, ["json"]);
-      const global = getGlobalOptions(cmd);
-      const bodyData = JSON.parse(opts.json);
-      validateJsonOrThrow(cmd, opts, bodyData);
-
-      if (opts.dryRun) {
-        dryRunOutput({
-          method: "POST",
-          path: "/k/v1/space/thread/comment.json",
-          body: bodyData,
-        });
-        return;
-      }
-
-      const result = await kintoneRequest({
-        method: "POST",
-        path: "/k/v1/space/thread/comment.json",
-        body: bodyData,
-        authType: global.authType,
-        guestSpaceId: toGuestSpaceId(global),
-      });
-      writeJson(result);
-    });
-  attachEndpoint(threadCommentAdd, {
-    method: "POST",
-    path: "/k/v1/space/thread/comment.json",
-  });
-
   // --- template space ---
+  // NOTE: API マップ階層上は「スペース」配下、CLI 階層では `template` 親をトップレベルに持つ。
+  // 物理ファイルとしては space.ts に同居（マップ準拠）。
   const template = program
     .command("template")
     .description("Template operations");
@@ -381,74 +234,39 @@ export const registerSpaceCommands = (program: Command): void => {
     path: "/k/v1/template/space.json",
   });
 
-  // --- guests (top-level) ---
-  const guestsCmd = program
-    .command("guests")
-    .description("Guest user operations (/k/v1/guests)");
+  // --- spaces (plural, top-level) ---
+  // NOTE: `spaces` は CLI 階層上トップレベル。`space` の子ではなく兄弟。
+  const spaces = program
+    .command("spaces")
+    .description("Spaces operations (/k/v1/spaces)");
 
-  // POST /k/v1/guests.json
-  const guestsCmdAdd = guestsCmd
-    .command("add")
-    .description("Add guest users")
-    .option("--json <payload>", "Raw JSON payload")
-    .option("--dry-run", "Validate without executing")
+  const spacesStats = spaces
+    .command("statistics")
+    .description("Spaces statistics");
+
+  // GET /k/v1/spaces/statistics.json
+  const spacesStatsGet = spacesStats
+    .command("get")
+    .description("Get space statistics")
+    .option("--ids <ids>", "Comma-separated Space IDs")
     .action(async (opts, cmd) => {
-      requireOpts(opts, ["json"]);
+      requireOpts(opts, ["ids"]);
       const global = getGlobalOptions(cmd);
-      noGuestSpace(global, "guests add", opts);
-      const bodyData = JSON.parse(opts.json);
-      validateJsonOrThrow(cmd, opts, bodyData);
-
-      if (opts.dryRun) {
-        dryRunOutput({
-          method: "POST",
-          path: "/k/v1/guests.json",
-          body: bodyData,
-        });
-        return;
-      }
+      noGuestSpace(global, "spaces statistics get", opts);
+      const ids = opts.ids.split(",");
 
       const result = await kintoneRequest({
-        method: "POST",
-        path: "/k/v1/guests.json",
-        body: bodyData,
+        method: "GET",
+        path: "/k/v1/spaces/statistics.json",
+        params: { ids },
         authType: global.authType,
       });
       writeJson(result);
     });
-  attachEndpoint(guestsCmdAdd, { method: "POST", path: "/k/v1/guests.json" });
-
-  // DELETE /k/v1/guests.json
-  const guestsCmdDelete = guestsCmd
-    .command("delete")
-    .description("Delete guest users")
-    .option("--guests <emails>", "Comma-separated guest email addresses")
-    .option("--dry-run", "Validate without executing")
-    .action(async (opts, cmd) => {
-      requireOpts(opts, ["guests"]);
-      const global = getGlobalOptions(cmd);
-      noGuestSpace(global, "guests delete", opts);
-      const params = { guests: opts.guests.split(",") };
-
-      if (opts.dryRun) {
-        dryRunOutput({
-          method: "DELETE",
-          path: "/k/v1/guests.json",
-          params,
-        });
-        return;
-      }
-
-      const result = await kintoneRequest({
-        method: "DELETE",
-        path: "/k/v1/guests.json",
-        params,
-        authType: global.authType,
-      });
-      writeJson(result);
-    });
-  attachEndpoint(guestsCmdDelete, {
-    method: "DELETE",
-    path: "/k/v1/guests.json",
+  attachEndpoint(spacesStatsGet, {
+    method: "GET",
+    path: "/k/v1/spaces/statistics.json",
   });
+
+  return { space, spaces };
 };
