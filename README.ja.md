@@ -33,7 +33,7 @@ LLM ベースのエージェントには、kintone 側ではなく *エージェ
 
 ```bash
 # グローバルインストール
-yarn global add @yoshkosh/kintone-cli
+npm install -g @yoshkosh/kintone-cli
 
 # またはインストールせず都度実行
 npx @yoshkosh/kintone-cli --help
@@ -48,7 +48,7 @@ npx @yoshkosh/kintone-cli --help
 
 ### `kt` がすでに PATH 上にある場合の対処
 
-`kt` は短く一般的な名前で、他のツールやエイリアスとよく衝突する（[k0sproject の `kt`](https://github.com/k0sproject/kt)、`kubectl` 用の個人エイリアス、[k14s `kapp` / `kbld` / `ytt`](https://carvel.dev/) ファミリ、過去の `yarn global` の残骸など）。実際にどのコマンドが解決されるかを先に確認する:
+`kt` は短く一般的な名前で、他のツールやエイリアスとよく衝突する（[k0sproject の `kt`](https://github.com/k0sproject/kt)、`kubectl` 用の個人エイリアス、[k14s `kapp` / `kbld` / `ytt`](https://carvel.dev/) ファミリ、過去の `npm install -g` の残骸など）。実際にどのコマンドが解決されるかを先に確認する:
 
 ```bash
 command -v kt
@@ -189,14 +189,14 @@ Claude Code に登録するには:
 1. CLI をインストールして `PATH` 上で `kt` を使えるようにする:
 
    ```bash
-   yarn global add @yoshkosh/kintone-cli
+   npm install -g @yoshkosh/kintone-cli
    ```
 
 2. 同梱の skill ディレクトリを Claude Code のスキルフォルダにコピー（またはシンボリックリンク）する:
 
    ```bash
    mkdir -p ~/.claude/skills
-   cp -R "$(yarn global dir)/node_modules/@yoshkosh/kintone-cli/skills/kt" ~/.claude/skills/
+   cp -R "$(npm root -g)/@yoshkosh/kintone-cli/skills/kt" ~/.claude/skills/
    ```
 
 3. Claude Code 側で読み込まれていることを確認する（スキル名は `kt`）:

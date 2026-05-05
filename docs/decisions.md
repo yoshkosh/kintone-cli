@@ -267,6 +267,8 @@
 
 **ドキュメント表記と install ツールの差異**: ドキュメントは `yarn` 系で表記する一方、実 install / 実行は `pnpm-lock.yaml` 準拠（pnpm）で行う。プロジェクト CLAUDE.md の規約。
 
+→ **2026-05-05 改定**: README（エンドユーザー向け install 手順）のみ `npm install -g` / `npx` 表記に変更。理由は下記 ADR 参照。
+
 **参考**: `reports/json-payload-validation-spec.md`、`docs/decisions.md` 2026-04-16「OpenAPI Spec 活用: リクエスト・コントラクト検証のみ採用」
 
 ---
@@ -321,3 +323,26 @@
 - `>=22.11`（22 LTS の特定マイナー固定）: マイナー粒度の刻みは依存上の必然がない。
 
 **参考**: `prompts/release-plan.md` HIGH 8
+
+---
+
+## 2026-05-05 README のエンドユーザー向け install 表記を npm に統一
+
+**決定**: README.md / README.ja.md のグローバルインストール手順を `yarn global add` から `npm install -g` に変更する。スキル配置例の `$(yarn global dir)/node_modules/...` も `$(npm root -g)/...` に揃える。`kt` の PATH 衝突説明文中の `yarn global` 例示も `npm install -g` に置換。
+
+**理由**:
+- end-user は npm を素手で持っている前提の方が現実的（npm は Node 同梱、yarn は別途 install が必要）。
+- 公開先が npmjs.org であり、scope (`@yoshkosh`) も npm 規約。`npm install -g` の方が公開チャネルとの整合が良い。
+- yarn 表記は「ドキュメントは yarn」というプロジェクト CLAUDE.md の規約由来だが、これはコントリビューター向け開発手順の表記ルールであって、エンドユーザーが「最初に動かす」手順とは目的が違う。
+
+**スコープ**:
+- 変更対象: README.md / README.ja.md（end-user 向け）。
+- 維持: AGENTS.md / `.claude/CLAUDE.md` ローカル / 過去の `docs/log.md` エントリ（コントリビューター向けまたは履歴）。AGENTS.md は pnpm をカノニカル、yarn を Corepack 経由の代替として記載済み。
+- 既存の 2026-05-02 ADR（line 268 サブノート）に「2026-05-05 改定」の参照を追記。
+
+**実装**:
+- README.md の 4 箇所（install / PATH 衝突説明 / SKILL.md 登録手順 ×2）を置換。
+- README.ja.md の対応する 4 箇所を同様に置換。
+- `prompts/release-plan.md` A2 の install 表記も npm に統一（私的な計画書だが、Phase 4 以降の判断ブレを防ぐため）。
+
+**参考**: `prompts/release-phase-3.md`、Phase 3 作業ログ（`docs/log.md` 該当エントリ）

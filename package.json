@@ -1,34 +1,56 @@
 {
   "name": "@yoshkosh/kintone-cli",
   "version": "0.5.5",
-  "description": "kintone REST API CLI tool",
+  "description": "Schema-validated kintone REST API CLI for humans and AI agents",
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "skills",
+    "THIRD_PARTY_NOTICES.md",
+    "CHANGELOG.md"
   ],
   "bin": {
     "kintone-cli": "./dist/index.js",
     "kt": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc && npm run build:spec",
+    "build": "tsc && node scripts/build-spec.mjs",
     "build:spec": "node scripts/build-spec.mjs",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
-    "test": "npm run build:spec && vitest run",
+    "test": "node scripts/build-spec.mjs && vitest run",
     "test:watch": "vitest",
-    "prepublishOnly": "npm run build"
+    "prepack": "tsc && node scripts/build-spec.mjs"
   },
   "keywords": [
     "kintone",
-    "cli"
+    "cli",
+    "rest-api",
+    "ai-agent",
+    "agent-skills",
+    "claude-code",
+    "openapi",
+    "openapi-spec",
+    "validation"
   ],
+  "author": {
+    "name": "Isao Yoshikoshi",
+    "url": "https://github.com/yoshkosh"
+  },
+  "homepage": "https://github.com/yoshkosh/kintone-cli#readme",
+  "bugs": {
+    "url": "https://github.com/yoshkosh/kintone-cli/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yoshkosh/kintone-cli.git"
+    "url": "git+https://github.com/yoshkosh/kintone-cli.git"
   },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.20.0",
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "license": "MIT",
   "dependencies": {

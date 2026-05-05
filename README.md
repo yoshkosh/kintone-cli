@@ -33,7 +33,7 @@ The companion [`skills/kt/SKILL.md`](skills/kt/SKILL.md) ships with the package 
 
 ```bash
 # Install globally
-yarn global add @yoshkosh/kintone-cli
+npm install -g @yoshkosh/kintone-cli
 
 # Or run on demand without installing
 npx @yoshkosh/kintone-cli --help
@@ -48,7 +48,7 @@ The package installs two binaries:
 
 ### `kt` is on your PATH already? Resolving conflicts
 
-`kt` is a short, popular name — it commonly collides with the [k0sproject `kt` tool](https://github.com/k0sproject/kt), with personal aliases for `kubectl`, with the [k14s `kapp`/`kbld`/`ytt` family](https://carvel.dev/), or with whatever a previous `yarn global` left behind. Check what your shell will run before assuming:
+`kt` is a short, popular name — it commonly collides with the [k0sproject `kt` tool](https://github.com/k0sproject/kt), with personal aliases for `kubectl`, with the [k14s `kapp`/`kbld`/`ytt` family](https://carvel.dev/), or with whatever a previous `npm install -g` left behind. Check what your shell will run before assuming:
 
 ```bash
 command -v kt
@@ -189,14 +189,14 @@ To register it with Claude Code:
 1. Install the CLI so `kt` is available on `PATH`:
 
    ```bash
-   yarn global add @yoshkosh/kintone-cli
+   npm install -g @yoshkosh/kintone-cli
    ```
 
 2. Copy (or symlink) the bundled skill directory into your Claude Code skills folder:
 
    ```bash
    mkdir -p ~/.claude/skills
-   cp -R "$(yarn global dir)/node_modules/@yoshkosh/kintone-cli/skills/kt" ~/.claude/skills/
+   cp -R "$(npm root -g)/@yoshkosh/kintone-cli/skills/kt" ~/.claude/skills/
    ```
 
 3. Confirm Claude Code picks it up (the skill name is `kt`):
