@@ -337,7 +337,7 @@
 
 **スコープ**:
 - 変更対象: README.md / README.ja.md（end-user 向け）。
-- 維持: AGENTS.md / `.claude/CLAUDE.md` ローカル / 過去の `docs/log.md` エントリ（コントリビューター向けまたは履歴）。AGENTS.md は pnpm をカノニカル、yarn を Corepack 経由の代替として記載済み。
+- 維持: AGENTS.md / `.claude/CLAUDE.md` ローカル / 過去の作業ログエントリ（コントリビューター向けまたは履歴）。AGENTS.md は pnpm をカノニカル、yarn を Corepack 経由の代替として記載済み。
 - 既存の 2026-05-02 ADR（line 268 サブノート）に「2026-05-05 改定」の参照を追記。
 
 **実装**:
@@ -345,4 +345,4 @@
 - README.ja.md の対応する 4 箇所を同様に置換。
 - `prompts/release-plan.md` A2 の install 表記も npm に統一（私的な計画書だが、Phase 4 以降の判断ブレを防ぐため）。
 
-**参考**: `prompts/release-phase-3.md`、Phase 3 作業ログ（`docs/log.md` 該当エントリ）
+**参考**: Phase 3 リリース作業（`git log -- README.md README.ja.md` で該当コミット参照）

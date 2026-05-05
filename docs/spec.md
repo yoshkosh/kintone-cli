@@ -222,7 +222,7 @@ kt records get --app 1 --page-all > records.jsonl
 
 ## ファイル構成
 
-API マップ（`prompts/kintone-rest-api-map.md`）の階層構造に揃えて、`src/commands/`配下を機能別サブディレクトリに分割している。
+kintone REST API のリソース階層に揃えて、`src/commands/`配下を機能別サブディレクトリに分割している。
 
 ```
 src/
