@@ -27,9 +27,6 @@ pnpm test:watch
 node dist/index.js --help # run the locally built CLI
 ```
 
-`yarn` equivalents work via Corepack if you prefer (`yarn install --immutable`,
-`yarn build`, `yarn test`), but CI and the lockfile are pnpm.
-
 ## Source of truth
 
 - API shape — request/response, parameters, schemas — comes from the **kintone

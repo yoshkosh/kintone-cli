@@ -337,7 +337,7 @@
 
 **スコープ**:
 - 変更対象: README.md / README.ja.md（end-user 向け）。
-- 維持: AGENTS.md / `.claude/CLAUDE.md` ローカル / 過去の作業ログエントリ（コントリビューター向けまたは履歴）。AGENTS.md は pnpm をカノニカル、yarn を Corepack 経由の代替として記載済み。
+- 維持: AGENTS.md / `.claude/CLAUDE.md` ローカル / 過去の作業ログエントリ（コントリビューター向けまたは履歴）。AGENTS.md は pnpm をカノニカルとして記載済み。
 - 既存の 2026-05-02 ADR（line 268 サブノート）に「2026-05-05 改定」の参照を追記。
 
 **実装**:
