@@ -10,8 +10,8 @@
     "CHANGELOG.md"
   ],
   "bin": {
-    "kintone-cli": "./dist/index.js",
-    "kt": "./dist/index.js"
+    "kintone-cli": "dist/index.js",
+    "kt": "dist/index.js"
   },
   "scripts": {
     "build": "tsc && node scripts/build-spec.mjs",
