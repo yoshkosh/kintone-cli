@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.6.0] - TBD
+## [0.6.1] - 2026-05-06
+
+### Fixed
+
+- `kt --version` / `kintone-cli --version` now correctly reports the package
+  version. In 0.6.0 the `commander` `.version()` argument was hard-coded to the
+  previous release string and was not bumped during the 0.6.0 release, so the
+  CLI reported an outdated version. The version is now read from `package.json`
+  at runtime so manual bumps are no longer required.
+
+## [0.6.0] - 2026-05-06
 
 ### Added
 
@@ -100,8 +110,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   comment APIs, and the `bulk-request` / `plugin` / `space` / `guests` /
   `statistics` commands. See git history for per-commit detail.
 
-[Unreleased]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.0...HEAD
-[0.6.0]: https://github.com/yoshkosh/kintone-cli/compare/v0.5.5...v0.6.0
+[Unreleased]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/yoshkosh/kintone-cli/releases/tag/v0.6.0
 [0.5.5]: https://github.com/yoshkosh/kintone-cli/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/yoshkosh/kintone-cli/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/yoshkosh/kintone-cli/compare/v0.5.2...v0.5.3

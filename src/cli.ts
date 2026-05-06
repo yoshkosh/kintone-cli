@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import { Command, CommanderError } from "commander";
 // record/
 import { registerRecordCommands } from "./commands/record/record.js";
@@ -30,13 +31,21 @@ import {
 } from "./schema-option.js";
 import { JsonValidationError } from "./validator.js";
 
+// NOTE: package.json から動的に version を読む。0.6.0 で commander 引数が "0.5.3" の
+// まま出荷された不具合（手動 bump 漏れ）を再発させない。dist 出力は src の 1 つ上が
+// パッケージルートになる構成（rootDir: ./src, outDir: ./dist）。
+const require = createRequire(import.meta.url);
+const { version: CLI_VERSION } = require("../package.json") as {
+  version: string;
+};
+
 export const createProgram = (): Command => {
   const program = new Command();
 
   program
     .name("kt")
     .description("kintone REST API CLI")
-    .version("0.5.3")
+    .version(CLI_VERSION)
     .option(
       "--auth-type <type>",
       "Authentication type: api-token, password, oauth",
