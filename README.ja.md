@@ -1,236 +1,222 @@
 # kintone-cli
 
-> AI エージェントと人間のための、スキーマ検証付き kintone REST API CLI。
+AI エージェントからの利用を前提に設計した kintone REST API のコマンドラインツールです。手動入力でも扱いやすいように工夫されています。
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+> このツールの基本思想や設計は、Justin Poehnelt 氏の記事 [*Rewrite your CLI for AI Agents*](https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/) を参考にさせていただいています。
 
-`kt` は [kintone REST API](https://kintone.dev/ja/docs/kintone/rest-api/) を、AI エージェント（Claude Code、Codex など）を一次想定ユーザとして設計した、予測可能で薄いファサードである。同時に人間からも問題なく利用できる。すべてのエンドポイントコマンドは kintone 公式の [OpenAPI Specification](https://github.com/kintone/rest-api-spec) に対応しており、同じ Spec をランタイムに同梱して `--json` ペイロードを送信前に検証し、さらに `--schema` でエンドポイント情報を API 呼び出しなしに参照できる。
+---
 
-English: [README.md](README.md)
+## AI エージェントのための設計
 
-## なぜ存在するか
+### SKILL.md と `--schema` でコマンド体系を先に開示する
 
-LLM ベースのエージェントには、kintone 側ではなく *エージェント側* で早期に失敗するインターフェースが必要である。本 CLI は次の 3 つの性質を中核に置いている。
+エージェントは SKILL.md でコマンド一覧と使い方を把握し、不足する情報を `--schema` や API パスとの対応関係から補うことができます。
 
-- **予測可能なコマンドツリー** — `kt <noun> <verb>` の構造を REST API パスに対応させている。例えば `/k/v1/record.json` の POST は常に `kt record add`。人間向けエイリアスや略記は導入しない。
-- **`--json` のスキーマ検証** — 書き込み系ペイロードはランタイムに同梱した OpenAPI Spec を Ajv でチェックする。`"rcord"` のようなタイポや必須キー欠落は HTTP 送信前に stderr の構造化 JSON エラーと exit code 1 で拒否される。
-- **エンドポイントの自己記述** — どのエンドポイントコマンドにも `--schema` を付けると、その OpenAPI operation を JSON で出力する。認証・API 呼び出し・必須オプションは不要。エージェントは kintone に触れずに wire 形状を確認できる。
+- **AI エージェント用 skill の同梱**
+  - [`skills/kt/SKILL.md`](skills/kt/SKILL.md) を npm パッケージに同梱（[agentskills.io 仕様](https://agentskills.io/specification)準拠）
+  - Claude Code など agentskills.io 対応ランタイムに登録すれば、エージェントは skill 読み込み時点で本ツールの使い方を把握
+- **スキーマ自己検査（`--schema`）**
+  - 各エンドポイントコマンドで、そのコマンドが対応する API エンドポイントの OpenAPI 定義（リクエストボディの構造、パラメータの型、必須項目）を JSON で標準出力に出力
+  - 認証情報、`KINTONE_BASE_URL`、必須オプションのいずれも不要
+  - ネットワーク通信なし
+- **API パスに対応したコマンド体系** — 各コマンドが kintone REST API のパスと HTTP メソッドに 1:1 対応（例: `POST /k/v1/record.json` → `kt record add`）
 
-パッケージには [`skills/kt/SKILL.md`](skills/kt/SKILL.md) も同梱している。これは AI エージェント向けの user-facing なドキュメントで、Claude Code（または Skill を読む他のエージェントランタイム）に登録すれば、コマンドマップと上記の安全機構をエージェントが利用できる。
+### `--fields` / `--page-all` / 環境変数認証でエージェントの実行環境に合わせる
 
-## 必要環境
+コンテキストウィンドウや認証経路など、エージェント側の実行環境に向けた設計です。
 
-- **Node.js 22 以上。** 本 CLI は Node 組み込みの `fetch` などの最近のプラットフォーム機能を使う。Node 20 を使っているなら次のように切り替える:
+- **取得フィールドの絞り込み（`--fields`）** — `records get` で取得フィールドを限定。必要なフィールドだけに絞り込んで応答サイズを抑制
+- **カーソル API による全件ストリーム取得（`--page-all`）**
+  - `records get --page-all` で全レコードをカーソル API で取得可能（デフォルトは 1 ページ・最大 500 件）
+  - 1 行 1 JSON の NDJSON ストリームとして取得するため、バッファリングせずに処理することが可能で、コンテキストウィンドウを圧迫しない
+- **環境変数による認証** — 認証情報は環境変数のみから読み取り、設定ファイルやブラウザリダイレクトは使用しない。エージェントランタイムや CI、コンテナから利用しやすい
 
-  ```bash
-  nvm install 22
-  nvm use 22
-  ```
+#### サンプル: 必要なフィールドだけを NDJSON で全件取得する
 
-- 認証情報を持つ kintone テナント（API トークン、パスワード、または OAuth。詳細は[認証](#認証)を参照）。
+```sh
+$ kt records get --app 42 --fields "タイトル,ステータス" --page-all
+{"タイトル":{"value":"見積依頼 A"},"ステータス":{"value":"open"}}
+{"タイトル":{"value":"見積依頼 B"},"ステータス":{"value":"closed"}}
+{"タイトル":{"value":"見積依頼 C"},"ステータス":{"value":"open"}}
+...
+```
 
-## インストール
+- `--fields` で取得フィールドを 2 つに絞り、`--page-all` で 1 行 1 レコードの NDJSON として出力した例
+- `| jq 'select(.["ステータス"].value == "open")'` で途中フィルタしたり、`| head -n 100` で先頭だけ取り出したりできる
+  - レコード数が多くても結果セット全体をエージェントのコンテキストに読み込まずにすむ
 
-```bash
-# グローバルインストール
+### 送信前のローカル検証
+
+誤ったリクエストを HTTP 通信の実行前に抑止することができます。
+
+- **送信前バリデーション付きの `--json`**
+  - HTTP 通信前に同梱の OpenAPI スキーマで検証
+  - エラー時は構造化 JSON で返却。`additionalProperty` や `missingProperty` などのキーから、エージェント自身が出力を修正可能
+  - 複数の API 呼び出しをまとめて送る `bulk-request add` でも、各サブリクエストを送信先 API ごとのスキーマで個別に検証。エラーには `/requests/0/payload` のように「何番目のサブリクエストか」を示すパスが含まれるため、原因のサブリクエストだけ特定して修正可能
+- **dry-run による事前確認**
+  - write 系コマンドで `--dry-run` を指定すると送信予定の HTTP メソッド、URL、ボディを出力
+  - リクエストの発行なし
+  - `--dry-run` でも `--json` のバリデーションは実行されるため、送信せずに payload の検証が可能
+
+#### サンプル: 送信前に typo を検出する
+
+```sh
+$ kt record add --json '{"app":1,"rcord":{"name":{"value":"x"}}}' --dry-run
+{"error":"json_validation_failed","method":"POST","path":"/k/v1/record.json",
+ "errors":[
+   {"instancePath":"","keyword":"required",
+    "params":{"missingProperty":"record"}},
+   {"instancePath":"","keyword":"additionalProperties",
+    "params":{"additionalProperty":"rcord"}}
+ ]}
+```
+
+- 最上位キーの `record` を `rcord` と誤入力した例
+- 送信前のバリデーションで失敗し、`params.missingProperty: "record"` と `params.additionalProperty: "rcord"` という機械可読な情報がエージェントに返却
+- エージェント自身がこの値を参照して出力を修正可能
+- HTTP リクエストは未発行のため、kintone のレート制限を消費せず、エラーレスポンスを読み解くトークンも不要
+
+---
+
+## セットアップ
+
+### 前提
+
+- Node.js 22 以上
+- 接続先の kintone 環境とアクセス権限
+
+### インストール
+
+```sh
 npm install -g @yoshkosh/kintone-cli
-
-# またはインストールせず都度実行
-npx @yoshkosh/kintone-cli --help
 ```
 
-パッケージは 2 つのバイナリをインストールする:
+インストール後は `kt` または `kintone-cli` のどちらのコマンド名でも起動できます。本ドキュメントの例では `kt` を使用します。
 
-| バイナリ | 説明 |
-|--------|-------------|
-| `kt` | 短い形式。本 README と `SKILL.md` の例で使用。 |
-| `kintone-cli` | 長い形式。動作は同一。 |
+動作確認:
 
-### `kt` がすでに PATH 上にある場合の対処
-
-`kt` は短く一般的な名前で、他のツールやエイリアスとよく衝突する（[k0sproject の `kt`](https://github.com/k0sproject/kt)、`kubectl` 用の個人エイリアス、[k14s `kapp` / `kbld` / `ytt`](https://carvel.dev/) ファミリ、過去の `npm install -g` の残骸など）。実際にどのコマンドが解決されるかを先に確認する:
-
-```bash
-command -v kt
-type -a kt
+```sh
+kt --version
 ```
 
-`kt` がすでに別のものを指している場合、次の **いずれか** を選ぶ:
+#### AI エージェント向けスキルのインストール（任意）
 
-- 長い名前を使う: `kintone-cli record get --app 1 --id 1`。
-- `npx` 経由で実行する: `npx @yoshkosh/kintone-cli record get --app 1 --id 1`。
-- シェルの rc にローカルなエイリアスを追加する:
+AI エージェントから利用しない場合、この手順はスキップして構いません。
 
-  ```bash
-  alias kt-kintone='kintone-cli'
-  ```
+スキル定義は GitHub リポジトリの `skills/` 配下に同梱されており、`npx skills` から GitHub URL を直接指定して登録できます（CLI 本体の `npm install -g` は不要）。
 
-本 README と `SKILL.md` の例は `kt` を使う。衝突がある場合は上記いずれかに読み替えてほしい（動作は変わらない）。
-
-## 認証
-
-認証情報は環境変数で渡す。`direnv`、`1Password`、macOS Keychain、シェル rc など、普段使いの管理方法に乗せて構わない。本 CLI は設定ファイルを読み書きしない。
-
-| 環境変数 | 必須 | 備考 |
-|----------|----------|-------|
-| `KINTONE_BASE_URL` | 常に必須 | 例: `https://example.cybozu.com` |
-| `KINTONE_API_TOKEN` | 3 方式から 1 つ | アプリ単位のトークン。複数アプリ時はカンマ区切り |
-| `KINTONE_USERNAME` + `KINTONE_PASSWORD` | 3 方式から 1 つ | パスワード認証 |
-| `KINTONE_OAUTH_CLIENT_ID` + `KINTONE_OAUTH_CLIENT_SECRET` + `KINTONE_OAUTH_REFRESH_TOKEN` | 3 方式から 1 つ | OAuth — フックは入っているが、トークン交換は未実装 |
-
-複数の方式が同時に検出された場合は警告を出して先頭の方式を使う。`--auth-type api-token`（または `password` / `oauth`）を渡せば明示的に選択できる。
-
-## コマンド体系
-
-トップレベルコマンドは kintone REST API のパス構造に対応している:
-
-```text
-kt preview                Preview（事前公開）系 (/k/v1/preview)
-kt record / kt records    単一・複数レコード操作
-kt bulk-request           /k/v1/bulkRequest
-kt file                   /k/v1/file
-kt app / kt apps          アプリ・アプリ一覧操作
-kt field-acl              /k/v1/field/acl
-kt space / kt spaces      スペース・スペース一覧操作
-kt template               テンプレート操作
-kt guests                 ゲストユーザ操作
-kt plugin / kt plugins    システムプラグイン操作
+```sh
+# Claude Code の例（GitHub から直接取得）
+npx skills add https://github.com/yoshkosh/kintone-cli -g -a claude-code -y
 ```
 
-最新の一覧は `kt --help` で確認できる。各サブツリーは `kt <cmd> --help`、完全なコマンドマップは [`skills/kt/SKILL.md`](skills/kt/SKILL.md) を参照。
+- skill ファイル自体は agentskills.io 仕様準拠のため、同仕様に対応する他のランタイムでも利用可能
+- エージェント側の仕様詳細は [`skills/kt/SKILL.md`](skills/kt/SKILL.md) を参照
 
-### 共通フラグ
+### kintone への接続
 
-| フラグ | 適用先 | 説明 |
-|------|------------|-------------|
-| `--auth-type <type>` | グローバル | `api-token`、`password`、`oauth` |
-| `--guest-space-id <id>` | ほとんどのエンドポイント | ゲストスペース用パスプレフィックス。システム系では無視される |
-| `--json <payload>` | 書き込み系 | kintone API リクエストボディ。送信前に検証される |
-| `--dry-run` | 書き込み系 | リクエスト内容を出力するのみ。HTTP 送信はしない |
-| `--schema` | 全エンドポイント | OpenAPI operation を JSON 出力。認証・API 呼び出し不要 |
-| `--skip-validation` | `--json` 全コマンド | ペイロード検証をスキップ（最終手段の脱出口） |
+`kt` は認証情報を環境変数から取得します。設定ファイルは使用しません。サポートする認証方式は以下の 3 種類です。
 
-## 使用例
+| 方式         | 必要な環境変数                                                                                              |
+| ------------ | ----------------------------------------------------------------------------------------------------------- |
+| API トークン | `KINTONE_BASE_URL`, `KINTONE_API_TOKEN`                                                                     |
+| パスワード   | `KINTONE_BASE_URL`, `KINTONE_USERNAME`, `KINTONE_PASSWORD`                                                  |
+| OAuth        | `KINTONE_BASE_URL`, `KINTONE_OAUTH_CLIENT_ID`, `KINTONE_OAUTH_CLIENT_SECRET`, `KINTONE_OAUTH_REFRESH_TOKEN` |
 
-```bash
-# 単一レコード取得
-kt record get --app 42 --id 1
+> OAuth 認証は未実装です（後述「制約事項」を参照）。当面は API トークンまたはパスワード認証を推奨します。
 
-# レコード検索 + フィールド絞り込み
-kt records get --app 42 --query 'ステータス = "完了"' --fields "レコード番号,名前"
+- 表は優先順位順に記載。複数の方式の認証情報がセットされている場合、警告を表示した上で、上から順に最初に取得できた認証情報を使用
+- `--auth-type api-token|password|oauth` で認証方式を明示することも可能
 
-# 全レコードを NDJSON でストリーム、jq で後処理
-kt records get --app 42 --page-all --fields "レコード番号,名前" \
-  | jq 'select(.["名前"].value | test("田中"))'
+疎通確認の例（API トークン認証）:
 
-# レコード追加 — まず dry-run、その後本実行
-kt record add --dry-run --json '{"app": 42, "record": {"名前": {"value": "新規"}}}'
-kt record add --json '{"app": 42, "record": {"名前": {"value": "新規"}}}'
+```sh
+export KINTONE_BASE_URL="https://your-subdomain.cybozu.com"
+export KINTONE_API_TOKEN="..."
+kt app get --id <appId>
+```
 
-# bulk-request（bulkRequest エンドポイントは書き込み系メソッドのみ受け付ける）
-kt bulk-request add --dry-run --json '{"requests": [{"method": "POST", "api": "/k/v1/record.json", "payload": {"app": 1, "record": {"名前": {"value": "新規"}}}}]}'
+---
 
-# API 呼び出しなしで wire 形状を確認
+## 使い方
+
+### REST API のパス・メソッドから CLI コマンドを特定する
+
+| kintone REST API                         | `kt` コマンド                                |
+| ---------------------------------------- | -------------------------------------------- |
+| `GET /k/v1/record.json`                  | `kt record get`                              |
+| `POST /k/v1/records.json`                | `kt records add`                             |
+| `PUT /k/v1/preview/app/form/fields.json` | `kt preview app form-fields update`          |
+| `POST /k/guest/{spaceId}/v1/record.json` | `kt record add --guest-space-id <spaceId>`   |
+
+- **`preview`** — フラグではなくサブコマンド階層そのもの。運用環境とプレビューを取り違える操作ミスが構造的に防がれる
+- **`--guest-space-id`** — API パスを書き換えるためのオプション。コマンド本体は guest space 用と通常用で同一
+
+コマンド一覧は [`skills/kt/SKILL.md`](skills/kt/SKILL.md) を参照してください。
+
+### `--fields` と `--page-all` で大量レコードを NDJSON ストリームとして取り出す
+
+```sh
+kt records get --app 42 --fields "タイトル,担当者,ステータス" --page-all > records.jsonl
+```
+
+- アプリ 42 の全レコードを、3 フィールドのみ、1 行 1 JSON 形式で出力
+- `jq 'select(...)'` での絞り込み、`head -n 100` での先頭サンプル抽出、ファイルへの保存と再利用などが可能
+- 結果セット全体をエージェントのコンテキストに読み込まずに済む
+
+### `--schema` で API のリクエスト形式をオフライン・認証なしで確認する
+
+```sh
 kt record add --schema | jq .operation.requestBody
-kt records get --schema | jq '.operation.parameters[] | select(.in == "query") | .name'
-
-# Preview ワークフロー: 設定編集 → デプロイ
-kt preview app settings update --dry-run --json '{"app": 42, "name": "改名後"}'
-kt preview app deploy add --json '{"apps": [{"app": 42}]}'
-kt preview app deploy get --apps 42
-
-# アプリ権限
-kt app acl get --app 42
-kt field-acl get --app 42
-
-# スペース
-kt space get --id 1
-kt space members get --id 1
 ```
 
-## `--json` 検証の概要
+`POST /k/v1/record.json` のリクエストボディスキーマを表示します。`--json` を組み立てる前にペイロードの形を確認するときに使えます。`KINTONE_BASE_URL` や認証情報を持たない環境（CI、開発機など）でも実行できます。
 
-`--json` ペイロードは API 呼び出し前に kintone OpenAPI Spec で検証される（`--dry-run` でも検証は行われる）。必須キー欠落、coercion で吸収できない型不一致、トップレベルの余分なキーは、stderr の JSON エラーと exit code 1 で拒否される。
+### `--dry-run` で検証してから送信する
 
-```bash
-$ kt record add --json '{}'
-{"error":"json_validation_failed","method":"POST","path":"/k/v1/record.json","errors":[{"instancePath":"","keyword":"required","message":"must have required property 'app'","params":{"missingProperty":"app"}},{"instancePath":"","keyword":"required","message":"must have required property 'record'","params":{"missingProperty":"record"}}]}
-$ echo $?
-1
+```sh
+# 1. dry-run でローカル検証する。HTTP は呼ばれない。
+kt record add --json "$(cat payload.json)" --dry-run
+
+# 2. --dry-run を外して実送信する。
+kt record add --json "$(cat payload.json)"
 ```
 
-`params` ブロックは機械可読を意図して構造化している。エージェントは `params.missingProperty`（欠落した必須キー）、`params.additionalProperty`（`"rcord"` のようなタイポ候補）から、メッセージ文字列をパースせずに復旧できる。
+ステップ 1 で失敗した場合、エージェントは構造化エラーを参照してペイロードを修正できます。ステップ 2 はステップ 1 を通過したときのみ実行する運用が可能です。
 
-`bulk-request add` では、`requests[i].payload` を外側のエンベロープだけでなく、`(method, api)` で選んだ *サブスキーマ* に対しても検証する。形が合わないサブペイロードは正しいパスでエラーになる。未知またはケースが一致しない `(method, api)` の組み合わせは `bulkRequestUnknownSubapi` キーワードで拒否される。
+### プレビューで変更してから運用環境にデプロイする
 
-Spec 側が古い・過剰に厳しいなどの理由で kintone は受理するペイロードが弾かれる場合は `--skip-validation` を付ける。使用ごとに stderr へ通知が出るため、ログでバイパスを追える。
+```sh
+# 1. プレビュー環境のフォームフィールドを更新する。
+kt preview app form-fields update --app 42 --json "$(cat fields.json)"
 
-## `--schema` 自己検査
-
-```bash
-kt record add --schema | jq .
-kt preview app form-fields update --schema | jq .operation.requestBody.content
+# 2. プレビューを運用環境にデプロイする。
+kt preview app deploy add --json '{"apps":[{"app":42}]}'
 ```
 
-`--schema` はエンドポイントの `{ method, path, operation }` を compact JSON で出力する。このとき:
+ステップ 1 はプレビュー環境のみを変更し、ステップ 2 で運用環境に反映されます。
 
-- HTTP 呼び出しは行われない。
-- `KINTONE_BASE_URL` と認証は不要。
-- `--guest-space-id` は無視される（ゲストパスは Spec 上同一の operation を共有するため、非ゲストパスを返す）。
-- 必須オプションを省略できる（`kt record add --schema` は `--json` なしで動く）。
-- `--dry-run` と併用しても、出力は schema のみとなる。
+---
 
-## 同梱 Claude Code Skill の利用
+## 制約事項
 
-パッケージには [`skills/kt/SKILL.md`](skills/kt/SKILL.md) を同梱している。これは [Claude Code Skill](https://docs.claude.com/ja/docs/claude-code/skills) として完成しており、コマンドマップ全量・ペイロード検証の挙動・エージェント向けに安全な Bash パターンを記載している。
+- **OAuth 認証** — 未実装（実装予定）。当面は API トークンまたはパスワード認証のみ利用可能
+- **応答サニタイズ** — 未実装（実装予定）。`--sanitize` 実装までの間、エージェントへ渡すコンテキストにおいては、kintone のレコード値をプロンプトインジェクションを含みうる「信頼できない入力」として扱うこと
+- **入力ハードニング** — typo・必須項目・型などスキーマレベルの検査は実装済み。ファイルパス・制御文字・URL エンコーディングなど文字列レベルのハードニングは部分実装（実装予定）。詳細は [`SECURITY.md`](SECURITY.md) を参照
 
-Claude Code に登録するには:
+---
 
-1. CLI をインストールして `PATH` 上で `kt` を使えるようにする:
+## ドキュメント
 
-   ```bash
-   npm install -g @yoshkosh/kintone-cli
-   ```
-
-2. 同梱の skill ディレクトリを Claude Code のスキルフォルダにコピー（またはシンボリックリンク）する:
-
-   ```bash
-   mkdir -p ~/.claude/skills
-   cp -R "$(npm root -g)/@yoshkosh/kintone-cli/skills/kt" ~/.claude/skills/
-   ```
-
-3. Claude Code 側で読み込まれていることを確認する（スキル名は `kt`）:
-
-   ```bash
-   ls ~/.claude/skills/kt/SKILL.md
-   ```
-
-スキルファイルはプレーンな Markdown で、インストール前に内容を確認できる。実行可能コードは含まれず、エージェントが `kt` コマンドをどう組み立てるかを制約するだけである。
-
-## 第三者著作物
-
-`dist/spec.json` は [`kintone/rest-api-spec`](https://github.com/kintone/rest-api-spec)（Apache License 2.0）から派生している。内容は無改変で同梱しており（YAML → JSON への serialization 変換のみ）、これによりペイロード検証と `--schema` がオフラインで動作する。完全な帰属表示とライセンス情報は [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) を参照。
-
-## ドキュメント案内
-
-- [`skills/kt/SKILL.md`](skills/kt/SKILL.md) — 完全なコマンドマップ。AI エージェント向けに英語で記述。
-- [`AGENTS.md`](AGENTS.md) — 本リポジトリ *上で* 作業するコントリビュータとコーディングエージェント向けの規約（英語）。
-- [`docs/decisions.md`](docs/decisions.md) — 設計判断記録（ADR）。日本語で記述。
-- [`docs/spec.md`](docs/spec.md)、[`docs/ideas.md`](docs/ideas.md)、[`docs/log.md`](docs/log.md) — 内部設計メモ（日本語）。
-- [`CHANGELOG.md`](CHANGELOG.md) — バージョン別変更履歴。
-- [`SECURITY.md`](SECURITY.md) — 脆弱性報告窓口。
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — Issue / PR の出し方。
-
-## 外部参照
-
-- [kintone REST API ドキュメント](https://kintone.dev/ja/docs/kintone/rest-api/)
-- [kintone OpenAPI Specification](https://github.com/kintone/rest-api-spec)
-- [Claude Code Skills ドキュメント](https://docs.claude.com/ja/docs/claude-code/skills)
-
-## コントリビュート / フィードバック
-
-Issue・Pull Request は歓迎する（建設的な内容に限る）。バグ報告は最小再現と `kt --version` / `node --version` を添えるとデバッグしやすい。フローの概要は [`CONTRIBUTING.md`](CONTRIBUTING.md) を、脆弱性のプライベート報告は [`SECURITY.md`](SECURITY.md) を参照。
+- 英語版 README: [README.md](README.md)
+- AI エージェント向け仕様: [`skills/kt/SKILL.md`](skills/kt/SKILL.md)
+- 設計原則: [`docs/spec.md`](docs/spec.md)
+- アーキテクチャ判断記録（ADR）: [`docs/decisions.md`](docs/decisions.md)
+- コントリビューター向け: [`CONTRIBUTING.md`](CONTRIBUTING.md) / [`AGENTS.md`](AGENTS.md)
+- セキュリティポリシー: [`SECURITY.md`](SECURITY.md)
+- 変更履歴: [`CHANGELOG.md`](CHANGELOG.md)
 
 ## ライセンス
 
-[MIT](LICENSE) © Isao Yoshikoshi。同梱の第三者著作物はそれぞれのライセンスに従う。詳細は [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) を参照。
+- MIT ライセンス（[`LICENSE`](LICENSE) 参照）
+- 同梱の第三者著作物（kintone REST API Spec 等）はそれぞれのライセンスに準拠（[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) 参照）
