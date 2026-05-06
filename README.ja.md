@@ -1,5 +1,7 @@
 # kintone-cli
 
+**[English](README.md)**
+
 AI エージェントからの利用を前提に設計した kintone REST API のコマンドラインツールです。手動入力でも扱いやすいように工夫されています。
 
 > このツールの基本思想や設計は、Justin Poehnelt 氏の記事 [*Rewrite your CLI for AI Agents*](https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/) を参考にさせていただいています。

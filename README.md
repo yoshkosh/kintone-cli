@@ -1,236 +1,224 @@
 # kintone-cli
 
-> Schema-validated kintone REST API CLI for AI agents and humans.
+**[日本語版](README.ja.md)**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+A command-line tool for the kintone REST API, designed for use by AI agents and ergonomic for human operators.
 
-`kt` is a thin, predictable façade over the [kintone REST API](https://kintone.dev/en/docs/kintone/rest-api/), designed first for AI agents (Claude Code, Codex, …) and equally usable by humans. Every endpoint command is generated from the kintone official [OpenAPI Specification](https://github.com/kintone/rest-api-spec) — the same spec is bundled at runtime to validate `--json` payloads *before* a request goes out and to serve `--schema` introspection without an API call.
+> The design draws on Justin Poehnelt's article [*Rewrite your CLI for AI Agents*](https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/).
 
-日本語版: [README.ja.md](README.ja.md)
+---
 
-## Why this exists
+## Designed for AI agents
 
-LLM-powered agents need a kintone interface that fails fast on the *agent's* machine, not on kintone's. The CLI is built around three properties:
+### Expose the command surface upfront via SKILL.md and `--schema`
 
-- **Predictable command tree** — `kt <noun> <verb>` mirrors the REST API path layout, so `/k/v1/record.json` POST is always `kt record add`. No human-friendly aliases, no inferred shortcuts.
-- **Schema-validated `--json`** — every write payload is checked against the vendored OpenAPI Spec at runtime via Ajv. Typos like `"rcord"` or missing required keys are rejected on stderr with a structured JSON error and exit code 1, *before* the HTTP call.
-- **Self-describing endpoints** — append `--schema` to any endpoint command to print its OpenAPI operation as JSON. No auth, no API call, no required options. An agent can introspect the wire shape without ever touching kintone.
+Agents learn the command list and usage from SKILL.md, then fill in any gaps via `--schema` and the 1:1 mapping to API paths.
 
-The companion [`skills/kt/SKILL.md`](skills/kt/SKILL.md) ships with the package and is the user-facing surface for AI agents — register it with Claude Code (or another agent runtime that consumes Skills) and the agent gains a documented command map plus the safety rails above.
+- **Bundled skill for AI agents**
+  - [`skills/kt/SKILL.md`](skills/kt/SKILL.md) ships in the npm package (compliant with the [agentskills.io specification](https://agentskills.io/specification))
+  - Once registered with an agentskills.io-compatible runtime such as Claude Code, the agent understands how to use this tool the moment the skill is loaded
+- **Schema self-inspection (`--schema`)**
+  - Each endpoint command prints the OpenAPI definition for its corresponding API endpoint (request body shape, parameter types, required fields) as JSON to stdout
+  - No credentials, `KINTONE_BASE_URL`, or required options needed
+  - No network traffic
+- **Command structure mirrors API paths** — every command maps 1:1 to a kintone REST API path and HTTP method (e.g., `POST /k/v1/record.json` → `kt record add`)
 
-## Requirements
+### Adapt to the agent's runtime with `--fields`, `--page-all`, and env-var auth
 
-- **Node.js 22 or later.** The CLI uses Node's built-in `fetch` and other recent platform features. If you are on Node 20:
+Designed around agent-side constraints such as context window size and authentication paths.
 
-  ```bash
-  nvm install 22
-  nvm use 22
-  ```
+- **Field projection (`--fields`)** — limit the fields returned by `records get` to keep response sizes small
+- **Stream every record via the cursor API (`--page-all`)**
+  - `records get --page-all` retrieves every record using the cursor API (the default fetches a single page, up to 500 records)
+  - Output is an NDJSON stream (one JSON object per line), so it can be processed without buffering and without overflowing the context window
+- **Environment-variable authentication** — credentials are read only from environment variables; no config files, no browser redirects. Friendly to agent runtimes, CI, and containers.
 
-- A kintone tenant with credentials (API token, password, or OAuth — see [Authentication](#authentication)).
+#### Example: stream only the fields you need as NDJSON
 
-## Installation
+```sh
+$ kt records get --app 42 --fields "Title,Status" --page-all
+{"Title":{"value":"Quote request A"},"Status":{"value":"open"}}
+{"Title":{"value":"Quote request B"},"Status":{"value":"closed"}}
+{"Title":{"value":"Quote request C"},"Status":{"value":"open"}}
+...
+```
 
-```bash
-# Install globally
+- `--fields` narrows the result to two fields, and `--page-all` emits one record per line as NDJSON
+- Pipe through `| jq 'select(.Status.value == "open")'` to filter mid-stream, or `| head -n 100` to take only the first few
+  - Even with very large result sets, you never have to load the entire result into the agent's context
+
+### Local validation before sending
+
+Catch malformed requests before they reach the network.
+
+- **`--json` with pre-flight validation**
+  - Validated against the bundled OpenAPI schema before any HTTP request is made
+  - Errors are returned as structured JSON. Keys such as `additionalProperty` and `missingProperty` let an agent correct its own output
+  - `bulk-request add`, which sends multiple API calls together, also validates each sub-request individually against the schema for its target API. Errors include a path such as `/requests/0/payload` so you can identify and fix only the offending sub-request
+- **Dry run for pre-flight inspection**
+  - Pass `--dry-run` on a write command to print the HTTP method, URL, and body that would be sent
+  - No request is issued
+  - `--json` validation still runs under `--dry-run`, so you can validate a payload without sending it
+
+#### Example: catch a typo before sending
+
+```sh
+$ kt record add --json '{"app":1,"rcord":{"name":{"value":"x"}}}' --dry-run
+{"error":"json_validation_failed","method":"POST","path":"/k/v1/record.json",
+ "errors":[
+   {"instancePath":"","keyword":"required",
+    "params":{"missingProperty":"record"}},
+   {"instancePath":"","keyword":"additionalProperties",
+    "params":{"additionalProperty":"rcord"}}
+ ]}
+```
+
+- The top-level key `record` is mistyped as `rcord`
+- Pre-flight validation fails and returns machine-readable details: `params.missingProperty: "record"` and `params.additionalProperty: "rcord"`
+- The agent can read these values and fix its own output
+- No HTTP request is sent, so no kintone rate limit is consumed and no tokens are spent parsing an error response
+
+---
+
+## Setup
+
+### Prerequisites
+
+- Node.js 22 or newer
+- A reachable kintone environment with the appropriate access rights
+
+### Installation
+
+```sh
 npm install -g @yoshkosh/kintone-cli
-
-# Or run on demand without installing
-npx @yoshkosh/kintone-cli --help
 ```
 
-The package installs two binaries:
+After installation, both `kt` and `kintone-cli` invoke the tool. This document uses `kt`.
 
-| Binary | Description |
-|--------|-------------|
-| `kt` | Short form, used in all examples and in `SKILL.md`. |
-| `kintone-cli` | Long form, identical behavior. |
+Verify the install:
 
-### `kt` is on your PATH already? Resolving conflicts
-
-`kt` is a short, popular name — it commonly collides with the [k0sproject `kt` tool](https://github.com/k0sproject/kt), with personal aliases for `kubectl`, with the [k14s `kapp`/`kbld`/`ytt` family](https://carvel.dev/), or with whatever a previous `npm install -g` left behind. Check what your shell will run before assuming:
-
-```bash
-command -v kt
-type -a kt
+```sh
+kt --version
 ```
 
-If `kt` already resolves to something else, do **one** of:
+#### Optional: install the AI-agent skill
 
-- Use the long binary instead: `kintone-cli record get --app 1 --id 1`.
-- Run via `npx`: `npx @yoshkosh/kintone-cli record get --app 1 --id 1`.
-- Add a local alias in your shell rc:
+Skip this section if you are not using the tool from an AI agent.
 
-  ```bash
-  alias kt-kintone='kintone-cli'
-  ```
+The skill definition ships under `skills/` in the GitHub repository, and `npx skills` can register it directly from a GitHub URL (no `npm install -g` required for the CLI itself).
 
-Examples in this README and in `SKILL.md` use `kt`. Substitute one of the options above if you have a conflict — no behavior changes.
-
-## Authentication
-
-Credentials are taken from environment variables. Manage them with whatever tool you already use (`direnv`, `1Password`, macOS Keychain, your shell rc). The CLI does **not** read or write a config file.
-
-| Variable | Required | Notes |
-|----------|----------|-------|
-| `KINTONE_BASE_URL` | Always | e.g. `https://example.cybozu.com` |
-| `KINTONE_API_TOKEN` | Pick one | Per-app token, comma-separated for cross-app calls |
-| `KINTONE_USERNAME` + `KINTONE_PASSWORD` | Pick one | Password authentication |
-| `KINTONE_OAUTH_CLIENT_ID` + `KINTONE_OAUTH_CLIENT_SECRET` + `KINTONE_OAUTH_REFRESH_TOKEN` | Pick one | OAuth — wiring is in place; token exchange is not yet implemented |
-
-If more than one method is detected, a warning is printed and the first match wins. Pass `--auth-type api-token` (or `password` / `oauth`) to be explicit.
-
-## Command basics
-
-Top-level commands track the kintone REST API path layout:
-
-```text
-kt preview                Preview (pre-live) operations (/k/v1/preview)
-kt record / kt records    Single- vs. multi-record operations
-kt bulk-request           /k/v1/bulkRequest
-kt file                   /k/v1/file
-kt app / kt apps          App / app-list operations
-kt field-acl              /k/v1/field/acl
-kt space / kt spaces      Space and space-list operations
-kt template               Template operations
-kt guests                 Guest user operations
-kt plugin / kt plugins    System plugin operations
+```sh
+# Example for Claude Code (fetched directly from GitHub)
+npx skills add https://github.com/yoshkosh/kintone-cli -g -a claude-code -y
 ```
 
-Run `kt --help` for the live list, `kt <cmd> --help` for any sub-tree, and see [`skills/kt/SKILL.md`](skills/kt/SKILL.md) for the full command map with one-line descriptions.
+- The skill file conforms to the agentskills.io specification, so any compatible runtime can use it
+- See [`skills/kt/SKILL.md`](skills/kt/SKILL.md) for agent-facing details
 
-### Common flags
+### Connecting to kintone
 
-| Flag | Applies to | Description |
-|------|------------|-------------|
-| `--auth-type <type>` | global | `api-token`, `password`, `oauth` |
-| `--guest-space-id <id>` | most endpoints | Guest space prefix; ignored on system-level endpoints |
-| `--json <payload>` | write commands | Raw kintone request body — validated before send |
-| `--dry-run` | write commands | Print the request, skip the HTTP call |
-| `--schema` | every endpoint | Print the OpenAPI operation as JSON; no auth, no API call |
-| `--skip-validation` | every `--json` command | Bypass payload validation (last-resort escape hatch) |
+`kt` reads credentials from environment variables only — no config files. Three authentication methods are supported:
 
-## Examples
+| Method    | Required environment variables                                                                              |
+| --------- | ----------------------------------------------------------------------------------------------------------- |
+| API token | `KINTONE_BASE_URL`, `KINTONE_API_TOKEN`                                                                     |
+| Password  | `KINTONE_BASE_URL`, `KINTONE_USERNAME`, `KINTONE_PASSWORD`                                                  |
+| OAuth     | `KINTONE_BASE_URL`, `KINTONE_OAUTH_CLIENT_ID`, `KINTONE_OAUTH_CLIENT_SECRET`, `KINTONE_OAUTH_REFRESH_TOKEN` |
 
-```bash
-# Get a single record
-kt record get --app 42 --id 1
+> OAuth is not yet implemented (see "Limitations" below). For now, use API token or password authentication.
 
-# Search records and filter the response shape
-kt records get --app 42 --query 'Status = "Done"' --fields "Record_number,Name"
+- The table is ordered by priority. When credentials for multiple methods are present, `kt` prints a warning and uses the first method whose credentials it can resolve, top to bottom
+- Pass `--auth-type api-token|password|oauth` to make the choice explicit
 
-# Stream every record as NDJSON, post-process with jq
-kt records get --app 42 --page-all --fields "Record_number,Name" \
-  | jq 'select(.Name.value | test("Tanaka"))'
+Smoke test (API token):
 
-# Add a record — dry-run first, then commit
-kt record add --dry-run --json '{"app": 42, "record": {"Name": {"value": "New"}}}'
-kt record add --json '{"app": 42, "record": {"Name": {"value": "New"}}}'
+```sh
+export KINTONE_BASE_URL="https://your-subdomain.cybozu.com"
+export KINTONE_API_TOKEN="..."
+kt app get --id <appId>
+```
 
-# Bulk request (the bulkRequest endpoint accepts only write methods)
-kt bulk-request add --dry-run --json '{"requests": [{"method": "POST", "api": "/k/v1/record.json", "payload": {"app": 1, "record": {"Name": {"value": "New"}}}}]}'
+---
 
-# Inspect the wire shape without calling the API
+## Usage
+
+### Find a CLI command from a REST API path and method
+
+| kintone REST API                         | `kt` command                               |
+| ---------------------------------------- | ------------------------------------------ |
+| `GET /k/v1/record.json`                  | `kt record get`                            |
+| `POST /k/v1/records.json`                | `kt records add`                           |
+| `PUT /k/v1/preview/app/form/fields.json` | `kt preview app form-fields update`        |
+| `POST /k/guest/{spaceId}/v1/record.json` | `kt record add --guest-space-id <spaceId>` |
+
+- **`preview`** — modeled as a subcommand hierarchy, not a flag. This structurally prevents mixing up production and preview operations
+- **`--guest-space-id`** — a flag that rewrites the API path. The command itself is identical between guest-space and regular cases
+
+For the full command list, see [`skills/kt/SKILL.md`](skills/kt/SKILL.md).
+
+### Stream large result sets as NDJSON with `--fields` and `--page-all`
+
+```sh
+kt records get --app 42 --fields "Title,Assignee,Status" --page-all > records.jsonl
+```
+
+- Outputs every record from app 42 as one JSON object per line, limited to three fields
+- Filter with `jq 'select(...)'`, sample the head with `head -n 100`, or save to a file for later reuse
+- Avoids loading the entire result set into the agent's context
+
+### Inspect API request shapes offline with `--schema`
+
+```sh
 kt record add --schema | jq .operation.requestBody
-kt records get --schema | jq '.operation.parameters[] | select(.in == "query") | .name'
-
-# Pre-live (preview) workflow: edit settings, then deploy
-kt preview app settings update --dry-run --json '{"app": 42, "name": "Renamed"}'
-kt preview app deploy add --json '{"apps": [{"app": 42}]}'
-kt preview app deploy get --apps 42
-
-# App permissions
-kt app acl get --app 42
-kt field-acl get --app 42
-
-# Spaces
-kt space get --id 1
-kt space members get --id 1
 ```
 
-## `--json` validation, in one minute
+Prints the request-body schema for `POST /k/v1/record.json`. Useful for shaping a `--json` payload before sending. Runs in environments without `KINTONE_BASE_URL` or credentials (CI, dev machines, and so on).
 
-Every `--json` payload is validated against the kintone OpenAPI Spec before the API call — including under `--dry-run`. Missing required keys, wrong types that can't be coerced, and stray top-level keys are rejected with a JSON error on stderr and exit code 1.
+### Validate, then send, with `--dry-run`
 
-```bash
-$ kt record add --json '{}'
-{"error":"json_validation_failed","method":"POST","path":"/k/v1/record.json","errors":[{"instancePath":"","keyword":"required","message":"must have required property 'app'","params":{"missingProperty":"app"}},{"instancePath":"","keyword":"required","message":"must have required property 'record'","params":{"missingProperty":"record"}}]}
-$ echo $?
-1
+```sh
+# 1. Validate locally. No HTTP request is made.
+kt record add --json "$(cat payload.json)" --dry-run
+
+# 2. Drop --dry-run to send for real.
+kt record add --json "$(cat payload.json)"
 ```
 
-The `params` block is intentionally machine-readable: agents can recover from `params.missingProperty` (an absent required key) and `params.additionalProperty` (a likely typo such as `"rcord"`) without parsing the message string.
+If step 1 fails, the agent reads the structured error and fixes the payload. Step 2 only runs once step 1 succeeds.
 
-For `bulk-request add`, every `requests[i].payload` is validated against the *sub-schema* selected by its `(method, api)` pair, not just the outer envelope, so misshapen sub-payloads surface at the right path. Unknown or case-mismatched `(method, api)` combinations are rejected with the `bulkRequestUnknownSubapi` keyword.
+### Edit the preview, then deploy to production
 
-If the spec is wrong (out of date, over-strict) and kintone would actually accept the payload, append `--skip-validation`. A stderr notice is printed on every use so the bypass is auditable in logs.
+```sh
+# 1. Update form fields in the preview environment.
+kt preview app form-fields update --app 42 --json "$(cat fields.json)"
 
-## `--schema` self-inspection
-
-```bash
-kt record add --schema | jq .
-kt preview app form-fields update --schema | jq .operation.requestBody.content
+# 2. Deploy the preview to production.
+kt preview app deploy add --json '{"apps":[{"app":42}]}'
 ```
 
-`--schema` prints `{ method, path, operation }` for the endpoint as compact JSON. With it:
+Step 1 changes only the preview environment; step 2 promotes the changes to production.
 
-- No HTTP call is made.
-- `KINTONE_BASE_URL` and authentication are not required.
-- `--guest-space-id` is ignored — guest paths share the same operation in the spec, so the non-guest path is returned.
-- Required options are skipped (`kt record add --schema` works without `--json`).
-- Combined with `--dry-run`, only the schema is printed.
+---
 
-## Using the bundled Claude Code skill
+## Limitations
 
-The package ships [`skills/kt/SKILL.md`](skills/kt/SKILL.md) — a ready-to-use [Claude Code Skill](https://docs.claude.com/en/docs/claude-code/skills) that documents the full command map, payload validation behavior, and agent-safe Bash patterns.
+- **OAuth authentication** — not yet implemented (planned). For now, only API token and password authentication are available
+- **Response sanitization** — not yet implemented (planned). Until `--sanitize` ships, treat kintone record values passed to an agent as untrusted input that may contain prompt injection
+- **Input hardening** — schema-level checks (typos, required fields, types) are in place. String-level hardening (file paths, control characters, URL encoding) is partially implemented (full coverage planned). See [`SECURITY.md`](SECURITY.md) for details
 
-To register it with Claude Code:
+---
 
-1. Install the CLI so `kt` is available on `PATH`:
+## Documentation
 
-   ```bash
-   npm install -g @yoshkosh/kintone-cli
-   ```
-
-2. Copy (or symlink) the bundled skill directory into your Claude Code skills folder:
-
-   ```bash
-   mkdir -p ~/.claude/skills
-   cp -R "$(npm root -g)/@yoshkosh/kintone-cli/skills/kt" ~/.claude/skills/
-   ```
-
-3. Confirm Claude Code picks it up (the skill name is `kt`):
-
-   ```bash
-   ls ~/.claude/skills/kt/SKILL.md
-   ```
-
-The skill file is plain Markdown and can be inspected before installation. It contains no executable code; it only constrains how the agent shapes `kt` commands.
-
-## Third-party material
-
-`dist/spec.json` is derived from [`kintone/rest-api-spec`](https://github.com/kintone/rest-api-spec) (Apache License 2.0) — bundled unmodified in content (YAML → JSON serialization only) so payload validation and `--schema` work offline. See [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) for the full attribution and license reference.
-
-## Documentation map
-
-- [`skills/kt/SKILL.md`](skills/kt/SKILL.md) — full command map, written for AI agents (English).
-- [`AGENTS.md`](AGENTS.md) — conventions for contributors and coding agents working *on* this repository (English).
-- [`docs/decisions.md`](docs/decisions.md) — Architectural Decision Records, written in Japanese.
-- [`docs/spec.md`](docs/spec.md), [`docs/ideas.md`](docs/ideas.md), [`docs/log.md`](docs/log.md) — internal design notes (Japanese).
-- [`CHANGELOG.md`](CHANGELOG.md) — versioned change history.
-- [`SECURITY.md`](SECURITY.md) — vulnerability reporting.
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — how to file issues and PRs.
-
-## External references
-
-- [kintone REST API documentation](https://kintone.dev/en/docs/kintone/rest-api/)
-- [kintone OpenAPI Specification](https://github.com/kintone/rest-api-spec)
-- [Claude Code Skills documentation](https://docs.claude.com/en/docs/claude-code/skills)
-
-## Contributing and feedback
-
-Issues and pull requests are welcome — please keep them constructive. Bug reports are most useful when they include a minimal reproduction and your `kt --version` / `node --version`. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the short version of the workflow and [`SECURITY.md`](SECURITY.md) for private vulnerability reporting.
+- Japanese version: [README.ja.md](README.ja.md)
+- Agent-facing specification: [`skills/kt/SKILL.md`](skills/kt/SKILL.md)
+- Design principles: [`docs/spec.md`](docs/spec.md)
+- Architecture decision records (ADRs): [`docs/decisions.md`](docs/decisions.md)
+- For contributors: [`CONTRIBUTING.md`](CONTRIBUTING.md) / [`AGENTS.md`](AGENTS.md)
+- Security policy: [`SECURITY.md`](SECURITY.md)
+- Changelog: [`CHANGELOG.md`](CHANGELOG.md)
 
 ## License
 
-[MIT](LICENSE) © Isao Yoshikoshi. Bundled third-party material is governed by its own license, reproduced in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+- MIT License (see [`LICENSE`](LICENSE))
+- Bundled third-party works (such as the kintone REST API Spec) are licensed under their respective terms (see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md))
