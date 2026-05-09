@@ -26,6 +26,14 @@ post-release backlog。エージェントが進捗に応じて section 間で項
 
 ## Next
 
+### Node.js 要件の緩和 (`>=22` → `>=20`)
+
+<!-- meta: ops / on-demand -->
+
+現在の `engines.node: ">=22"` は厳しすぎる。ランタイム依存（`commander@14` が `>=20` 要件、`ajv` は制約なし）と、実コードが利用する Web API（global `fetch` / `FormData` / `structuredClone` は Node 18+ で利用可）から、コード変更なしで `>=20` まで下げられる。Node 18 までの緩和は `commander` を 13.x に固定する必要があり実利が薄い（Node 18 は 2025-04-30 EOL、Node 20 も 2026-04-30 EOL 入りだが、Node 22 への移行猶予として現実的）。
+
+DoD: `package.json` の `engines.node` を `">=20"` に変更、README (英/日) の Prerequisite を "Node.js 20 or newer" に更新、CI matrix に `20.x` を追加。
+
 ### OAuth 認証
 
 <!-- meta: auth / README-promise -->
