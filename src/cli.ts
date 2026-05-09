@@ -41,7 +41,7 @@ export const createProgram = (): Command => {
 
   program
     .name("kt")
-    .description("kintone REST API CLI")
+    .description("Unofficial kintone REST API CLI")
     .version(CLI_VERSION)
     .option("--auth-type <type>", "Authentication type: api-token, password, oauth")
     .option("--guest-space-id <id>", "Guest space ID");

@@ -4,6 +4,9 @@
 
 AI エージェントからの利用を前提に設計した kintone REST API のコマンドラインツールです。手動入力でも扱いやすいように工夫されています。
 
+> [!NOTE]
+> 本ツールは非公式のサードパーティツールです。サイボウズ株式会社とは関係がありません。
+
 > このツールの基本思想や設計は、Justin Poehnelt 氏の記事 [_Rewrite your CLI for AI Agents_](https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/) を参考にさせていただいています。
 
 ---

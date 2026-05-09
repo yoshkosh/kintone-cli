@@ -1,7 +1,7 @@
 {
   "name": "@yoshkosh/kintone-cli",
   "version": "0.6.1",
-  "description": "Schema-validated kintone REST API CLI for humans and AI agents",
+  "description": "Unofficial schema-validated kintone REST API CLI for humans and AI agents",
   "type": "module",
   "files": [
     "dist",

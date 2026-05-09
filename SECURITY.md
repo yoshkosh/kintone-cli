@@ -1,5 +1,11 @@
 # Security Policy
 
+> **Note:** This is an unofficial third-party CLI and is **not affiliated with
+> or endorsed by Cybozu, Inc.** (the vendor of kintone). Vulnerabilities in
+> this tool should be reported to this repository's maintainer, **not** to
+> Cybozu. For vulnerabilities in the kintone service itself, contact Cybozu
+> through their official channels.
+
 ## Reporting a Vulnerability
 
 This CLI handles kintone credentials (`KINTONE_API_TOKEN`, `KINTONE_PASSWORD`,

@@ -7,6 +7,9 @@ in the npm tarball and is the user-facing surface.
 
 ## Project at a glance
 
+- An **unofficial** third-party CLI — not affiliated with or endorsed by
+  Cybozu, Inc. (the vendor of kintone). Keep this distinction visible in
+  user-facing surfaces (README, SKILL.md, `--help` output, npm description).
 - A schema-validated CLI facade over the kintone REST API, designed for AI
   agents and humans. The CLI binary is `kt` (also `kintone-cli`).
 - TypeScript, ESM only, Node.js ≥ 22 (uses built-in `fetch`).
