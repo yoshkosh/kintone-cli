@@ -5,10 +5,7 @@ export type GlobalOptions = {
   guestSpaceId?: string;
 };
 
-export const requireOpts = (
-  opts: Record<string, unknown>,
-  names: readonly string[],
-): void => {
+export const requireOpts = (opts: Record<string, unknown>, names: readonly string[]): void => {
   // NOTE: --schema は完全副作用ゼロを保証するため必須検証もスキップする
   if (opts.schema) return;
   for (const name of names) {

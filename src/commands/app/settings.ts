@@ -111,10 +111,7 @@ const registerSettingGet = ({
   path: string;
   hasLang: boolean;
 }): void => {
-  const cmd = parent
-    .command("get")
-    .description("Get setting")
-    .option("--app <id>", "App ID");
+  const cmd = parent.command("get").description("Get setting").option("--app <id>", "App ID");
 
   if (hasLang) {
     cmd.option("--lang <lang>", "Language: default, en, zh, ja, user");
@@ -138,13 +135,7 @@ const registerSettingGet = ({
   attachEndpoint(cmd, { method: "GET", path });
 };
 
-const registerSettingUpdate = ({
-  parent,
-  path,
-}: {
-  parent: Command;
-  path: string;
-}): void => {
+const registerSettingUpdate = ({ parent, path }: { parent: Command; path: string }): void => {
   const cmd = parent
     .command("update")
     .description("Update setting")

@@ -60,9 +60,7 @@ export const registerGuestsCommands = ({
   });
 
   // --- guests (top-level) ---
-  const guestsCmd = program
-    .command("guests")
-    .description("Guest user operations (/k/v1/guests)");
+  const guestsCmd = program.command("guests").description("Guest user operations (/k/v1/guests)");
 
   // POST /k/v1/guests.json
   const guestsCmdAdd = guestsCmd

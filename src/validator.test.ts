@@ -8,10 +8,7 @@ import {
   validateJsonOrThrow,
 } from "./validator.js";
 
-const makeCmd = (
-  method: "GET" | "POST" | "PUT" | "DELETE",
-  path: string,
-): Command => {
+const makeCmd = (method: "GET" | "POST" | "PUT" | "DELETE", path: string): Command => {
   const cmd = new Command("dummy");
   attachEndpoint(cmd, { method, path });
   return cmd;
@@ -55,9 +52,7 @@ describe("validateJsonOrThrow (body mode)", () => {
       thrown = e as JsonValidationError;
     }
     expect(thrown).toBeInstanceOf(JsonValidationError);
-    const extra = thrown?.entries.find(
-      (e) => e.keyword === "additionalProperties",
-    );
+    const extra = thrown?.entries.find((e) => e.keyword === "additionalProperties");
     expect(extra).toBeDefined();
     expect(extra?.params.additionalProperty).toBe("rcord");
   });
@@ -100,16 +95,14 @@ describe("validateJsonOrThrow (body mode)", () => {
 describe("validateJsonOrThrow coerce boundary", () => {
   it('"app": "1" passes for integer (string→number coerce)', () => {
     const cmd = makeCmd("POST", "/k/v1/record.json");
-    expect(() =>
-      validateJsonOrThrow(cmd, {}, { app: "1", record: {} }),
-    ).not.toThrow();
+    expect(() => validateJsonOrThrow(cmd, {}, { app: "1", record: {} })).not.toThrow();
   });
 
   it('"app": "abc" fails for integer (coerce impossible)', () => {
     const cmd = makeCmd("POST", "/k/v1/record.json");
-    expect(() =>
-      validateJsonOrThrow(cmd, {}, { app: "abc", record: {} }),
-    ).toThrow(JsonValidationError);
+    expect(() => validateJsonOrThrow(cmd, {}, { app: "abc", record: {} })).toThrow(
+      JsonValidationError,
+    );
   });
 });
 
@@ -123,25 +116,21 @@ describe("validateJsonOrThrow (query mode for DELETE)", () => {
 
   it('rejects "ids": "10,11" (string instead of array)', () => {
     const cmd = makeCmd("DELETE", "/k/v1/records.json");
-    expect(() =>
-      validateJsonOrThrow(cmd, {}, { app: 1, ids: "10,11" }, { mode: "query" }),
-    ).toThrow(JsonValidationError);
+    expect(() => validateJsonOrThrow(cmd, {}, { app: 1, ids: "10,11" }, { mode: "query" })).toThrow(
+      JsonValidationError,
+    );
   });
 });
 
 describe("validateJsonOrThrow --skip-validation", () => {
   let stderrSpy: ReturnType<typeof vi.spyOn>;
   beforeEach(() => {
-    stderrSpy = vi
-      .spyOn(process.stderr, "write")
-      .mockImplementation(() => true);
+    stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
   });
 
   it("does not throw for invalid payload when skipValidation=true", () => {
     const cmd = makeCmd("POST", "/k/v1/record.json");
-    expect(() =>
-      validateJsonOrThrow(cmd, { skipValidation: true }, {}),
-    ).not.toThrow();
+    expect(() => validateJsonOrThrow(cmd, { skipValidation: true }, {})).not.toThrow();
   });
 
   it("emits a stderr notice when skipValidation=true", () => {
@@ -229,9 +218,7 @@ describe("validateJsonOrThrow bulkRequest sub-payload (X2)", () => {
     );
     expect(missingIds).toBeDefined();
     const extraRecord = err?.entries.find(
-      (e) =>
-        e.keyword === "additionalProperties" &&
-        e.params.additionalProperty === "record",
+      (e) => e.keyword === "additionalProperties" && e.params.additionalProperty === "record",
     );
     expect(extraRecord).toBeDefined();
   });
@@ -294,9 +281,7 @@ describe("validateJsonOrThrow bulkRequest sub-payload (X2)", () => {
       ],
     });
     expect(err).toBeInstanceOf(JsonValidationError);
-    const unknown = err?.entries.find(
-      (e) => e.keyword === "bulkRequestUnknownSubapi",
-    );
+    const unknown = err?.entries.find((e) => e.keyword === "bulkRequestUnknownSubapi");
     expect(unknown).toBeDefined();
     expect(unknown?.instancePath).toBe("/requests/0");
     expect(unknown?.params.method).toBe("POST");
@@ -314,9 +299,7 @@ describe("validateJsonOrThrow bulkRequest sub-payload (X2)", () => {
       ],
     });
     expect(err).toBeInstanceOf(JsonValidationError);
-    const unknown = err?.entries.find(
-      (e) => e.keyword === "bulkRequestUnknownSubapi",
-    );
+    const unknown = err?.entries.find((e) => e.keyword === "bulkRequestUnknownSubapi");
     expect(unknown).toBeDefined();
     expect(unknown?.params.method).toBe("post");
   });
@@ -355,9 +338,7 @@ describe("validateJsonOrThrow bulkRequest sub-payload (X2)", () => {
     });
     expect(err).toBeInstanceOf(JsonValidationError);
     const extra = err?.entries.find(
-      (e) =>
-        e.keyword === "additionalProperties" &&
-        e.params.additionalProperty === "comment",
+      (e) => e.keyword === "additionalProperties" && e.params.additionalProperty === "comment",
     );
     expect(extra).toBeDefined();
     expect(extra?.instancePath).toBe("/requests/0");
@@ -401,13 +382,7 @@ describe("validateJsonOrThrow bulkRequest sub-payload (X2)", () => {
       ],
     });
     expect(err).toBeInstanceOf(JsonValidationError);
-    expect(
-      err?.entries.some((e) => e.instancePath === "/requests/0/payload"),
-    ).toBe(true);
-    expect(
-      err?.entries.some(
-        (e) => e.instancePath === "/requests/1/payload/records",
-      ),
-    ).toBe(true);
+    expect(err?.entries.some((e) => e.instancePath === "/requests/0/payload")).toBe(true);
+    expect(err?.entries.some((e) => e.instancePath === "/requests/1/payload/records")).toBe(true);
   });
 });

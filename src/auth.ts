@@ -83,9 +83,7 @@ export const resolveAuth = (authType?: string): Auth => {
 export const buildAuthHeaders = (auth: Auth): AuthHeaders => {
   switch (auth.type) {
     case "password": {
-      const encoded = Buffer.from(`${auth.username}:${auth.password}`).toString(
-        "base64",
-      );
+      const encoded = Buffer.from(`${auth.username}:${auth.password}`).toString("base64");
       return { "X-Cybozu-Authorization": encoded };
     }
     case "api-token":

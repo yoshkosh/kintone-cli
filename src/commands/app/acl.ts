@@ -23,10 +23,7 @@ const registerAclGet = ({
   path: string;
   hasLang?: boolean;
 }): void => {
-  const cmd = parent
-    .command("get")
-    .description(`Get ACL`)
-    .option("--app <id>", "App ID");
+  const cmd = parent.command("get").description(`Get ACL`).option("--app <id>", "App ID");
 
   if (hasLang) {
     cmd.option("--lang <lang>", "Language: default, en, zh, ja, user");
@@ -50,13 +47,7 @@ const registerAclGet = ({
   attachEndpoint(cmd, { method: "GET", path });
 };
 
-const registerAclUpdate = ({
-  parent,
-  path,
-}: {
-  parent: Command;
-  path: string;
-}): void => {
+const registerAclUpdate = ({ parent, path }: { parent: Command; path: string }): void => {
   const cmd = parent
     .command("update")
     .description("Update ACL")
@@ -121,9 +112,7 @@ export const registerAppAclCommands = ({
   // --- Preview ACL GET + PUT ---
 
   // ktpreview app acl get/update → /k/v1/preview/app/acl.json
-  const previewAppAcl = previewApp
-    .command("acl")
-    .description("Preview app ACL operations");
+  const previewAppAcl = previewApp.command("acl").description("Preview app ACL operations");
   registerAclGet({ parent: previewAppAcl, path: "/k/v1/preview/app/acl.json" });
   registerAclUpdate({
     parent: previewAppAcl,
@@ -131,9 +120,7 @@ export const registerAppAclCommands = ({
   });
 
   // ktpreview field-acl get/update → /k/v1/preview/field/acl.json
-  const previewFieldAcl = preview
-    .command("field-acl")
-    .description("Preview field ACL operations");
+  const previewFieldAcl = preview.command("field-acl").description("Preview field ACL operations");
   registerAclGet({
     parent: previewFieldAcl,
     path: "/k/v1/preview/field/acl.json",

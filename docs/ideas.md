@@ -117,7 +117,7 @@ DoD: 5〜10 ケースの手順書（`docs/` 配下 or `reports/`）+ リリー�
 - GitHub Settings → Actions → "Allow GitHub Actions to create..." 等の OIDC 設定
 - 切替時に npmjs.org の package ページに provenance バッジが付くようになる
 
-0.6.x までは 2FA Passkey ダイアログを Bash 経由で扱えない事情から、ユーザー側ターミナルで `npm publish` を手動実行している。
+  0.6.x までは 2FA Passkey ダイアログを Bash 経由で扱えない事情から、ユーザー側ターミナルで `npm publish` を手動実行している。
 
 DoD: タグ push を契機に `npm publish --provenance` が自動実行、provenance バッジ付与。
 

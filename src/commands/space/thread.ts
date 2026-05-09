@@ -85,9 +85,7 @@ export const registerThreadCommands = ({ space }: { space: Command }): void => {
   });
 
   // --- space thread comment ---
-  const threadComment = thread
-    .command("comment")
-    .description("Thread comment operations");
+  const threadComment = thread.command("comment").description("Thread comment operations");
 
   // POST /k/v1/space/thread/comment.json
   const threadCommentAdd = threadComment

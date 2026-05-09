@@ -51,9 +51,7 @@ export const registerAppFormFieldsCommands = ({
   // --- preview form-fields ---
   const previewFormFields = previewApp
     .command("form-fields")
-    .description(
-      "Preview form field operations (/k/v1/preview/app/form/fields)",
-    );
+    .description("Preview form field operations (/k/v1/preview/app/form/fields)");
 
   // GET /k/v1/preview/app/form/fields.json
   const previewFormFieldsGet = previewFormFields

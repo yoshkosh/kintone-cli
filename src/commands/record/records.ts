@@ -23,15 +23,13 @@ const fetchAllWithCursor = async (opts: CursorOptions): Promise<void> => {
   if (opts.query) cursorBody.query = opts.query;
   if (opts.fields) cursorBody.fields = opts.fields;
 
-  const cursorResult = await kintoneRequest<{ id: string; totalCount: number }>(
-    {
-      method: "POST",
-      path: "/k/v1/records/cursor.json",
-      body: cursorBody,
-      authType: opts.authType,
-      guestSpaceId: opts.guestSpaceId,
-    },
-  );
+  const cursorResult = await kintoneRequest<{ id: string; totalCount: number }>({
+    method: "POST",
+    path: "/k/v1/records/cursor.json",
+    body: cursorBody,
+    authType: opts.authType,
+    guestSpaceId: opts.guestSpaceId,
+  });
 
   const cursorId = cursorResult.id;
 
@@ -49,9 +47,7 @@ const fetchAllWithCursor = async (opts: CursorOptions): Promise<void> => {
       for (const record of page.records) {
         const ok = process.stdout.write(JSON.stringify(record) + "\n");
         if (!ok) {
-          await new Promise<void>((resolve) =>
-            process.stdout.once("drain", resolve),
-          );
+          await new Promise<void>((resolve) => process.stdout.once("drain", resolve));
         }
       }
 
@@ -68,12 +64,8 @@ const fetchAllWithCursor = async (opts: CursorOptions): Promise<void> => {
   }
 };
 
-export const registerRecordsCommands = (
-  program: Command,
-): { records: Command } => {
-  const records = program
-    .command("records")
-    .description("Records operations (/k/v1/records)");
+export const registerRecordsCommands = (program: Command): { records: Command } => {
+  const records = program.command("records").description("Records operations (/k/v1/records)");
 
   // GET /k/v1/records.json
   const recordsGet = records

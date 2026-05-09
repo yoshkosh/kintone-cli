@@ -49,6 +49,7 @@
 **理由**: APIパス（`/k/v1/preview/app/...`）に準拠。設計原則の「予測可能性」に忠実。
 
 **不採用案**:
+
 - `--preview` フラグ方式: コマンドの意味が変わるのにフラグで制御するのは不自然
 - 暗黙的なpreview適用: 安全性の問題
 
@@ -155,6 +156,7 @@
 **理由**: 本 CLI は引数 → URL/ヘッダ/ボディ構築の薄い変換層で、リクエスト構築の正しさはモックで完全検証可能。kintone 側の実挙動検証まで自動化すると setup/teardown コスト・テストアプリ管理の ROI が悪い。Tier 2 を CI 化すると既存の環境変数管理（2026-03-24 direnv + Keychain）と衝突するため、手動運用に留める。
 
 **不採用案**:
+
 - 全コマンドの E2E 自動化: ROI が悪く、テストアプリ状態管理の負担が大きい
 - 夜間 CI による Tier 2 自動化: Secrets 運用が既存方針と不整合
 - モックのみ: multipart / cursor / 429 等、spec と実 API の乖離検知には実呼び出しが必要
@@ -170,6 +172,7 @@
 **理由**: vitest は ESM/TS ネイティブで harness 導入コストが低い。`MockAgent` は Node 標準 fetch を declarative にインターセプトでき、ボイラープレート最小。Node 22 のビルトイン fetch は **Node 同梱の undici** を使うため、devDep としてインストールした userland undici の `setGlobalDispatcher` 単独では intercept できない。`vi.stubGlobal` で userland undici に橋渡しすることで `MockAgent` が機能する (`feat/phase4-slice` 試作で検証済)。
 
 **不採用案**:
+
 - `node:test` + 自前 fetch mock: ergonomics が弱く ROI 悪
 - `nock` / `msw`: fetch ネイティブの MockAgent が最小フィット
 - MockAgent 単独 (`stubGlobal` なし): Node 22 では intercept されず実ネットワークに漏れる
@@ -198,6 +201,7 @@
 **理由**: 公式 OpenAPI Spec はエラーレスポンスを定義していない (正常系 `"200"` のみ)。公式ドキュメントが明文化しているのは上記 3 フィールドだけで、`errors` や code 体系は JS SDK (`@kintone/rest-api-client`) が事実上の二次リファレンス。現状の `src/client.ts` の `KintoneAPIError` は raw body を `message` に入れるだけの最小実装のため、構造化アサートの対象となるプロパティが存在しない。`KintoneAPIError` を JS SDK 相当に構造化するかは別設計判断として分離する。
 
 **不採用案**:
+
 - エラーテスト全廃: `main()` の exit code 1 経路と `finally` クリーンアップ経路が未検証になる
 - 構造化アサーションを即採用: `KintoneAPIError` の構造化設計とセットで議論すべきで、テストだけ先行すると仕様外の決め打ちになる
 
@@ -214,6 +218,7 @@
 **前提**: Phase 4.2 着手前に 30 分実証で spec 厳密度 (`additionalProperties: true` の多用等で検証が実質ザルにならないか) を主要 3 エンドポイント (`record/get`, `records/get`, `record/post`) で確認する。spec が緩すぎれば (1) の投資判断自体を見直す。
 
 **不採用案**:
+
 - `ajv` を runtime 依存として前倒し投入: `--json` バリデーション未実装の間は npm 配布物に無駄な依存を載せる
 - `@stoplight/prism` などの完全 mock サーバ採用: in-test 用途で過剰
 - spec 取り込みを non-bundled で行う: external `$ref` 解決ロジックが複雑化するため bundled 版を前提とする
@@ -229,12 +234,14 @@
 **理由**: AI エージェントが「このコマンドが期待する parameters/requestBody」を実 API を叩かずに取り出せるようにするため。spec を一次ソースとして CLI 内で配るのが最も予測可能性が高い（外部の cybozu developer network 等を都度参照させずに済む）。副作用ゼロは「schema 取得には認証も実環境も不要」という呼び出し側の素直な期待と整合させるため。
 
 **実装**:
+
 - ビルド時に `third_party/rest-api-spec/openapi.yaml` を JSON 化して `dist/spec.json`（npm パッケージ同梱）と `src/spec.json`（test/`import.meta.url` 解決用、`.gitignore`）の両方に書き出す。
 - `attachEndpoint(cmd, { method, path })` でコマンドにエンドポイントメタを付与（`WeakMap` で外部管理。Command 型を汚染しない）。
 - `installSchemaOption(program)` を `cli.ts` の `createProgram` 末尾で呼び、メタ付きコマンドに `--schema` オプションと `preAction` フックを後付けする。
 - `requireOpts(opts, names)` ヘルパーで `requiredOption` 相当の検証を action 内に移し、`opts.schema` が立っていればスキップ。`noGuestSpace(global, name, opts)` も同様に `opts?.schema` を見て早期 return。
 
 **不採用案**:
+
 - `process.exit(0)` で終了: vitest がテストランナーごと落ちる。`CommanderError` throw なら exitOverride 配下で素直に exit code を返せる。
 - `requiredOption` のままにして `preValidate` で介入: commander の必須検証は action 直前に走るので、フック側で「実はオプション不要」を表現する標準的な手段がない。`option` に降格して action 内検証にした方が制御が明確。
 - guest path をテンプレートで返す: spec 上 `/k/guest/{guestSpaceId}/...` 用の独立 operation がある場合と通常パスと同一の場合が混在しており、利用側の混乱を避けるため通常パスに統一。
@@ -252,6 +259,7 @@
 **CLI エラー出力規約の例外**: 従来 CLI 側エラー（引数不正・認証未設定）はテキスト出力だが、validation 失敗のみ JSON 形式に拡張。CLI / API の弁別は `error` キーの有無で行う（API エラーは kintone のレスポンス JSON をそのまま透過するため `error` キーを持たない）。`JSON.parse` 失敗（不正 JSON）は構文ミスであり validation 違反とは性質が異なるため、引き続きテキスト出力。
 
 **実装**:
+
 - `src/endpoint-registry.ts` に `endpointMetaMap` / `attachEndpoint` / `walkAll` を切り出し、`schema-option.ts` と `validator.ts` 双方から共有（循環依存回避）。
 - `src/validator.ts` で `validateJsonOrThrow(cmd, opts, body, { mode })` を export。Ajv 実体・component schemas の `addSchema`・compiled validator のキャッシュは初回呼び出し時に lazy 初期化（`--schema` のみの経路では Ajv を一切ロードしない）。
 - `installSkipValidationOption(program)` を `cli.ts` で呼び、`walkAll` で `endpointMetaMap` 登録済かつ `--json` を持つコマンドに `--skip-validation` を一括注入する（個別追加を避け、新規 endpoint 追加時の取りこぼし防止）。
@@ -259,6 +267,7 @@
 - `src/__test-helpers__/spec-validator.ts` は `validator.ts` の `compileForEndpoint` を内部利用する薄い wrapper に書き換え。guest path 正規化と `ids[i]` 逆展開と GET query 検証は test-helper 側に保持（runtime には流入させない）。
 
 **不採用案**:
+
 - `--skip-validation` を 31 コマンド個別に option 追加: 新規 endpoint で取りこぼしリスク。`installSkipValidationOption` 一括注入に統一。
 - `coerceTypes` を切って厳密化: kintone 側の柔軟な型受容と乖離し過剰検出になる。境界は `cli.test.ts` で fixture 化して可視化。
 - format 検証の有効化: kintone spec の `format` は `long` / `date-time` / `boolean` / `number` / `query` 等の非標準値が多く、`ajv-formats` も独自 format も登録しない方針。`logger: false` は format warning 抑制であって format 検証ではない。
@@ -286,6 +295,7 @@
 - ajv カスタムキーワード方式は spec が discriminator を使っていないため独自規約が増える
 
 **実装**:
+
 - `src/bulk-request-schemas.ts` で `BULK_SUB_API_MAP: ReadonlyMap<string, string>` (8 エントリ) と `resolveBulkSubSchema(method, api)` を export
 - `src/validator.ts` に以下を追加:
   - `compileForBulkSub(name)`: `getComponentSchemas()[name]` を **clone** → `tightenTopLevel` → `getAjv().compile`、`bulk:${name}` でキャッシュ
@@ -296,6 +306,7 @@
 - マップ整合性は `src/spec.test.ts` の S1 (`anyOf` の `$ref` 名集合 == `BULK_SUB_API_MAP` の値集合) と S2 (`Map.size == 8`) で検査
 
 **不採用案**:
+
 - spec 由来のマップ自動抽出 (命名規則ベースで sub-schema 名 → `(method, api)` を逆引き): spec 命名が崩れた瞬間に黙って壊れる。明示的なリテラル定数の方が予測可能性が高い
 - spec 動的書き換え (`if (method=X, api=Y) then $ref=...` で組み直す): 認知負荷が高くエラーパスが読みにくい
 - 二段目を呼ばずに anyOf 由来エラーだけで済ます: 「payload は anyOf のどれにも一致しない」止まりで AI が原因特定しづらい (本機能の動機そのもの)
@@ -314,11 +325,13 @@
 **決定**: `package.json` の `engines.node` を `>=22` とする。0.6.0 の npm 公開と同時に明示する。
 
 **理由**:
+
 - ランタイムで Node の **built-in `fetch`** に依存している（`undici` を runtime には載せていない）。`fetch` は Node 18 で experimental として導入され、Node 21 で stable 化した。Node 22 は LTS でこれを引き継ぐ最初のラインであり、`fetch` を要件として宣言する最低ラインを 22 に置くのが素直。
 - Node 20 LTS は **2026-04-30 に active maintenance を終了** し security メンテのみとなる。新規プロジェクトとして公開するタイミングで Node 20 を最小に据える積極的理由がない。
 - AI ツール群の現場には Node 20.x が残っているが、README で「`nvm use 22` 等で切り替え」を案内する方針（リリース計画 A2）。
 
 **不採用案**:
+
 - `>=20`: 上記理由により built-in fetch / MockAgent の挙動差を巻き取る価値が薄い。
 - `>=22.11`（22 LTS の特定マイナー固定）: マイナー粒度の刻みは依存上の必然がない。
 
@@ -331,16 +344,19 @@
 **決定**: README.md / README.ja.md のグローバルインストール手順を `yarn global add` から `npm install -g` に変更する。スキル配置例の `$(yarn global dir)/node_modules/...` も `$(npm root -g)/...` に揃える。`kt` の PATH 衝突説明文中の `yarn global` 例示も `npm install -g` に置換。
 
 **理由**:
+
 - end-user は npm を素手で持っている前提の方が現実的（npm は Node 同梱、yarn は別途 install が必要）。
 - 公開先が npmjs.org であり、scope (`@yoshkosh`) も npm 規約。`npm install -g` の方が公開チャネルとの整合が良い。
 - yarn 表記は「ドキュメントは yarn」というプロジェクト CLAUDE.md の規約由来だが、これはコントリビューター向け開発手順の表記ルールであって、エンドユーザーが「最初に動かす」手順とは目的が違う。
 
 **スコープ**:
+
 - 変更対象: README.md / README.ja.md（end-user 向け）。
 - 維持: AGENTS.md / `.claude/CLAUDE.md` ローカル / 過去の作業ログエントリ（コントリビューター向けまたは履歴）。AGENTS.md は pnpm をカノニカルとして記載済み。
 - 既存の 2026-05-02 ADR（line 268 サブノート）に「2026-05-05 改定」の参照を追記。
 
 **実装**:
+
 - README.md の 4 箇所（install / PATH 衝突説明 / SKILL.md 登録手順 ×2）を置換。
 - README.ja.md の対応する 4 箇所を同様に置換。
 - `prompts/release-plan.md` A2 の install 表記も npm に統一（私的な計画書だが、Phase 4 以降の判断ブレを防ぐため）。

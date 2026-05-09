@@ -4,7 +4,7 @@
 
 AI エージェントからの利用を前提に設計した kintone REST API のコマンドラインツールです。手動入力でも扱いやすいように工夫されています。
 
-> このツールの基本思想や設計は、Justin Poehnelt 氏の記事 [*Rewrite your CLI for AI Agents*](https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/) を参考にさせていただいています。
+> このツールの基本思想や設計は、Justin Poehnelt 氏の記事 [_Rewrite your CLI for AI Agents_](https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/) を参考にさせていただいています。
 
 ---
 
@@ -144,12 +144,12 @@ kt app get --id <appId>
 
 ### REST API のパス・メソッドから CLI コマンドを特定する
 
-| kintone REST API                         | `kt` コマンド                                |
-| ---------------------------------------- | -------------------------------------------- |
-| `GET /k/v1/record.json`                  | `kt record get`                              |
-| `POST /k/v1/records.json`                | `kt records add`                             |
-| `PUT /k/v1/preview/app/form/fields.json` | `kt preview app form-fields update`          |
-| `POST /k/guest/{spaceId}/v1/record.json` | `kt record add --guest-space-id <spaceId>`   |
+| kintone REST API                         | `kt` コマンド                              |
+| ---------------------------------------- | ------------------------------------------ |
+| `GET /k/v1/record.json`                  | `kt record get`                            |
+| `POST /k/v1/records.json`                | `kt records add`                           |
+| `PUT /k/v1/preview/app/form/fields.json` | `kt preview app form-fields update`        |
+| `POST /k/guest/{spaceId}/v1/record.json` | `kt record add --guest-space-id <spaceId>` |
 
 - **`preview`** — フラグではなくサブコマンド階層そのもの。運用環境とプレビューを取り違える操作ミスが構造的に防がれる
 - **`--guest-space-id`** — API パスを書き換えるためのオプション。コマンド本体は guest space 用と通常用で同一

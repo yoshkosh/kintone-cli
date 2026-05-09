@@ -20,7 +20,5 @@ export const BULK_SUB_API_MAP: ReadonlyMap<string, string> = new Map([
 // kintone は事実上 POST/PUT/DELETE 大文字運用で、CLI 側の事前検証で
 // lower-case method を弾くのが「正確性優先」と整合する。
 // lower-case などミスマッチは呼び出し側で `bulkRequestUnknownSubapi` として弾く。
-export const resolveBulkSubSchema = (
-  method: string,
-  api: string,
-): string | undefined => BULK_SUB_API_MAP.get(`${method} ${api}`);
+export const resolveBulkSubSchema = (method: string, api: string): string | undefined =>
+  BULK_SUB_API_MAP.get(`${method} ${api}`);

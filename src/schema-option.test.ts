@@ -36,12 +36,8 @@ describe("--schema option", () => {
     setGlobalDispatcher(mockAgent);
     vi.stubGlobal("fetch", undiciFetch);
 
-    stdoutSpy = vi
-      .spyOn(process.stdout, "write")
-      .mockImplementation(() => true);
-    stderrSpy = vi
-      .spyOn(process.stderr, "write")
-      .mockImplementation(() => true);
+    stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 
     for (const key of KINTONE_ENV_KEYS) {
       vi.stubEnv(key, "");
@@ -56,23 +52,11 @@ describe("--schema option", () => {
     await mockAgent.close();
   });
 
-  const readStdout = (): string =>
-    stdoutSpy.mock.calls.map((c) => String(c[0])).join("");
-  const readStderr = (): string =>
-    stderrSpy.mock.calls.map((c) => String(c[0])).join("");
+  const readStdout = (): string => stdoutSpy.mock.calls.map((c) => String(c[0])).join("");
+  const readStderr = (): string => stderrSpy.mock.calls.map((c) => String(c[0])).join("");
 
   it("emits schema for record get and exits 0", async () => {
-    const code = await main([
-      "node",
-      "kt",
-      "record",
-      "get",
-      "--app",
-      "1",
-      "--id",
-      "1",
-      "--schema",
-    ]);
+    const code = await main(["node", "kt", "record", "get", "--app", "1", "--id", "1", "--schema"]);
 
     expect(readStderr()).toBe("");
     expect(code).toBe(0);
@@ -101,15 +85,7 @@ describe("--schema option", () => {
   });
 
   it("returns the non-guest path when --guest-space-id is set", async () => {
-    const code = await main([
-      "node",
-      "kt",
-      "record",
-      "get",
-      "--guest-space-id",
-      "5",
-      "--schema",
-    ]);
+    const code = await main(["node", "kt", "record", "get", "--guest-space-id", "5", "--schema"]);
 
     expect(code).toBe(0);
     const parsed = JSON.parse(readStdout());
@@ -117,15 +93,7 @@ describe("--schema option", () => {
   });
 
   it("bypasses the noGuestSpace guard for plugins get", async () => {
-    const code = await main([
-      "node",
-      "kt",
-      "--guest-space-id",
-      "5",
-      "plugins",
-      "get",
-      "--schema",
-    ]);
+    const code = await main(["node", "kt", "--guest-space-id", "5", "plugins", "get", "--schema"]);
 
     expect(readStderr()).toBe("");
     expect(code).toBe(0);

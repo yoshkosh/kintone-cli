@@ -17,9 +17,7 @@ const createValidatedPool = (agent: MockAgent, origin: string): MockPool => {
   const pool = agent.get(origin);
   const orig = pool.intercept.bind(pool);
   pool.intercept = ((match: Parameters<MockPool["intercept"]>[0]) => {
-    assertRequestMatchesSpec(
-      match as Parameters<typeof assertRequestMatchesSpec>[0],
-    );
+    assertRequestMatchesSpec(match as Parameters<typeof assertRequestMatchesSpec>[0]);
     return orig(match);
   }) as MockPool["intercept"];
   return pool;
@@ -101,12 +99,8 @@ describe("cli integration", () => {
     // undici.fetch に差し替えることで MockAgent が intercept できるようになる。
     vi.stubGlobal("fetch", undiciFetch);
 
-    stdoutSpy = vi
-      .spyOn(process.stdout, "write")
-      .mockImplementation(() => true);
-    stderrSpy = vi
-      .spyOn(process.stderr, "write")
-      .mockImplementation(() => true);
+    stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     // vitest が console をフックしており process.stderr.write とは別経路。
     // console.error を直接 spy することで resolveAuth の warning を捕捉する。
     consoleErrSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -124,10 +118,8 @@ describe("cli integration", () => {
     await mockAgent.close();
   });
 
-  const readStdout = (): string =>
-    stdoutSpy.mock.calls.map((c) => String(c[0])).join("");
-  const readStderr = (): string =>
-    stderrSpy.mock.calls.map((c) => String(c[0])).join("");
+  const readStdout = (): string => stdoutSpy.mock.calls.map((c) => String(c[0])).join("");
+  const readStderr = (): string => stderrSpy.mock.calls.map((c) => String(c[0])).join("");
 
   describe("record get", () => {
     it("case A: hits /k/v1/record.json with token-a", async () => {
@@ -142,16 +134,7 @@ describe("cli integration", () => {
         })
         .reply(200, GET_FIXTURE);
 
-      const code = await main([
-        "node",
-        "kt",
-        "record",
-        "get",
-        "--app",
-        "1",
-        "--id",
-        "1",
-      ]);
+      const code = await main(["node", "kt", "record", "get", "--app", "1", "--id", "1"]);
 
       const stderr = readStderr();
       expect(stderr, `stderr: ${stderr}`).toBe("");
@@ -209,16 +192,7 @@ describe("cli integration", () => {
         })
         .reply(403, errorBody);
 
-      const code = await main([
-        "node",
-        "kt",
-        "record",
-        "get",
-        "--app",
-        "1",
-        "--id",
-        "1",
-      ]);
+      const code = await main(["node", "kt", "record", "get", "--app", "1", "--id", "1"]);
 
       expect(code).toBe(1);
       mockAgent.assertNoPendingInterceptors();
@@ -250,22 +224,13 @@ describe("cli integration", () => {
         })
         .reply(200, ADD_RESPONSE);
 
-      const code = await main([
-        "node",
-        "kt",
-        "record",
-        "add",
-        "--json",
-        INPUT_JSON,
-      ]);
+      const code = await main(["node", "kt", "record", "add", "--json", INPUT_JSON]);
 
       const stderr = readStderr();
       expect(stderr, `stderr: ${stderr}`).toBe("");
       expect(code).toBe(0);
       mockAgent.assertNoPendingInterceptors();
-      expect(readStdout()).toBe(
-        JSON.stringify(ADD_RESPONSE, undefined, 2) + "\n",
-      );
+      expect(readStdout()).toBe(JSON.stringify(ADD_RESPONSE, undefined, 2) + "\n");
     });
 
     it("--dry-run: no HTTP fire, outputs dry-run JSON", async () => {
@@ -274,15 +239,7 @@ describe("cli integration", () => {
       // attempt would throw and propagate as exit 1. Passing with code 0
       // proves that --dry-run short-circuited before fetch.
 
-      const code = await main([
-        "node",
-        "kt",
-        "record",
-        "add",
-        "--json",
-        INPUT_JSON,
-        "--dry-run",
-      ]);
+      const code = await main(["node", "kt", "record", "add", "--json", INPUT_JSON, "--dry-run"]);
 
       const stderr = readStderr();
       expect(stderr, `stderr: ${stderr}`).toBe("");
@@ -303,8 +260,7 @@ describe("cli integration", () => {
   });
 
   describe("record update", () => {
-    const UPDATE_JSON =
-      '{"app":1,"id":1,"record":{"name":{"value":"NewName"}}}';
+    const UPDATE_JSON = '{"app":1,"id":1,"record":{"name":{"value":"NewName"}}}';
     const UPDATE_RESPONSE = { revision: "2" };
 
     it("PUT body: serializes --json and sends application/json", async () => {
@@ -322,22 +278,13 @@ describe("cli integration", () => {
         })
         .reply(200, UPDATE_RESPONSE);
 
-      const code = await main([
-        "node",
-        "kt",
-        "record",
-        "update",
-        "--json",
-        UPDATE_JSON,
-      ]);
+      const code = await main(["node", "kt", "record", "update", "--json", UPDATE_JSON]);
 
       const stderr = readStderr();
       expect(stderr, `stderr: ${stderr}`).toBe("");
       expect(code).toBe(0);
       mockAgent.assertNoPendingInterceptors();
-      expect(readStdout()).toBe(
-        JSON.stringify(UPDATE_RESPONSE, undefined, 2) + "\n",
-      );
+      expect(readStdout()).toBe(JSON.stringify(UPDATE_RESPONSE, undefined, 2) + "\n");
     });
 
     it("--dry-run: no HTTP fire, outputs dry-run JSON", async () => {
@@ -391,14 +338,7 @@ describe("cli integration", () => {
         })
         .reply(200, {});
 
-      const code = await main([
-        "node",
-        "kt",
-        "records",
-        "delete",
-        "--json",
-        DELETE_JSON,
-      ]);
+      const code = await main(["node", "kt", "records", "delete", "--json", DELETE_JSON]);
 
       const stderr = readStderr();
       expect(stderr, `stderr: ${stderr}`).toBe("");
@@ -442,16 +382,7 @@ describe("cli integration", () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
       vi.stubEnv("KINTONE_BASE_URL", ""); // override beforeEach
 
-      const code = await main([
-        "node",
-        "kt",
-        "record",
-        "get",
-        "--app",
-        "1",
-        "--id",
-        "1",
-      ]);
+      const code = await main(["node", "kt", "record", "get", "--app", "1", "--id", "1"]);
 
       expect(code).toBe(1);
       expect(readStdout()).toBe("");
@@ -461,16 +392,7 @@ describe("cli integration", () => {
     it("no auth configured → exit 1 with guidance message", async () => {
       // beforeEach cleared all KINTONE_* auth vars to "".
 
-      const code = await main([
-        "node",
-        "kt",
-        "record",
-        "get",
-        "--app",
-        "1",
-        "--id",
-        "1",
-      ]);
+      const code = await main(["node", "kt", "record", "get", "--app", "1", "--id", "1"]);
 
       expect(code).toBe(1);
       expect(readStdout()).toBe("");
@@ -482,16 +404,7 @@ describe("cli integration", () => {
       // No interceptor registered. disableNetConnect() on MockAgent causes
       // any non-matched request to throw, simulating a network failure.
 
-      const code = await main([
-        "node",
-        "kt",
-        "record",
-        "get",
-        "--app",
-        "1",
-        "--id",
-        "1",
-      ]);
+      const code = await main(["node", "kt", "record", "get", "--app", "1", "--id", "1"]);
 
       expect(code).toBe(1);
       expect(readStdout()).toBe("");
@@ -503,9 +416,7 @@ describe("cli integration", () => {
     // Test fixtures using CHANGEME (gitleaks-recognized placeholder).
     const TEST_USER = "CHANGEME";
     const TEST_PASS = "CHANGEME";
-    const PASSWORD_AUTH_HEADER = Buffer.from(
-      `${TEST_USER}:${TEST_PASS}`,
-    ).toString("base64");
+    const PASSWORD_AUTH_HEADER = Buffer.from(`${TEST_USER}:${TEST_PASS}`).toString("base64");
 
     it("password auth sends X-Cybozu-Authorization (Basic base64)", async () => {
       vi.stubEnv("KINTONE_USERNAME", TEST_USER);
@@ -520,16 +431,7 @@ describe("cli integration", () => {
         })
         .reply(200, GET_FIXTURE);
 
-      const code = await main([
-        "node",
-        "kt",
-        "record",
-        "get",
-        "--app",
-        "1",
-        "--id",
-        "1",
-      ]);
+      const code = await main(["node", "kt", "record", "get", "--app", "1", "--id", "1"]);
 
       expect(readStderr()).toBe("");
       expect(code).toBe(0);
@@ -584,22 +486,11 @@ describe("cli integration", () => {
         })
         .reply(200, GET_FIXTURE);
 
-      const code = await main([
-        "node",
-        "kt",
-        "record",
-        "get",
-        "--app",
-        "1",
-        "--id",
-        "1",
-      ]);
+      const code = await main(["node", "kt", "record", "get", "--app", "1", "--id", "1"]);
 
       expect(code).toBe(0);
       mockAgent.assertNoPendingInterceptors();
-      const warnings = consoleErrSpy.mock.calls
-        .map((c) => c.map(String).join(" "))
-        .join("\n");
+      const warnings = consoleErrSpy.mock.calls.map((c) => c.map(String).join(" ")).join("\n");
       expect(warnings).toContain("Multiple auth methods detected");
     });
 
@@ -683,15 +574,7 @@ describe("cli integration", () => {
         authHeader: { "X-Cybozu-API-Token": "test-token" },
       });
 
-      const code = await main([
-        "node",
-        "kt",
-        "records",
-        "get",
-        "--app",
-        "1",
-        "--page-all",
-      ]);
+      const code = await main(["node", "kt", "records", "get", "--app", "1", "--page-all"]);
 
       expect(readStderr()).toBe("");
       expect(code).toBe(0);
@@ -712,15 +595,7 @@ describe("cli integration", () => {
         authHeader: { "X-Cybozu-API-Token": "test-token" },
       });
 
-      const code = await main([
-        "node",
-        "kt",
-        "records",
-        "get",
-        "--app",
-        "1",
-        "--page-all",
-      ]);
+      const code = await main(["node", "kt", "records", "get", "--app", "1", "--page-all"]);
 
       expect(readStderr()).toBe("");
       expect(code).toBe(0);
@@ -747,14 +622,7 @@ describe("cli integration", () => {
         })
         .reply(200, RESPONSE);
 
-      const code = await main([
-        "node",
-        "kt",
-        "records",
-        "add",
-        "--json",
-        INPUT_JSON,
-      ]);
+      const code = await main(["node", "kt", "records", "add", "--json", INPUT_JSON]);
 
       expect(readStderr()).toBe("");
       expect(code).toBe(0);
@@ -767,8 +635,7 @@ describe("cli integration", () => {
     it("PUT /k/v1/records.json with body", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
       const pool = createValidatedPool(mockAgent, BASE_URL);
-      const INPUT_JSON =
-        '{"app":1,"records":[{"id":1,"record":{"name":{"value":"Updated"}}}]}';
+      const INPUT_JSON = '{"app":1,"records":[{"id":1,"record":{"name":{"value":"Updated"}}}]}';
       const RESPONSE = { records: [{ id: "1", revision: "2" }] };
       pool
         .intercept({
@@ -782,14 +649,7 @@ describe("cli integration", () => {
         })
         .reply(200, RESPONSE);
 
-      const code = await main([
-        "node",
-        "kt",
-        "records",
-        "update",
-        "--json",
-        INPUT_JSON,
-      ]);
+      const code = await main(["node", "kt", "records", "update", "--json", INPUT_JSON]);
 
       expect(readStderr()).toBe("");
       expect(code).toBe(0);
@@ -803,14 +663,7 @@ describe("cli integration", () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
       // No interceptor registered. The guard throws before any fetch call.
 
-      const code = await main([
-        "node",
-        "kt",
-        "--guest-space-id",
-        "5",
-        "plugins",
-        "get",
-      ]);
+      const code = await main(["node", "kt", "--guest-space-id", "5", "plugins", "get"]);
 
       expect(code).toBe(1);
       expect(readStdout()).toBe("");
@@ -848,22 +701,14 @@ describe("cli integration", () => {
     it("typo in top-level key surfaces additionalProperty name", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
 
-      const code = await main([
-        "node",
-        "kt",
-        "record",
-        "add",
-        "--json",
-        '{"app":1,"rcord":{}}',
-      ]);
+      const code = await main(["node", "kt", "record", "add", "--json", '{"app":1,"rcord":{}}']);
 
       expect(code).toBe(1);
       const parsed = JSON.parse(readStderr().trim());
       expect(
         parsed.errors.some(
           (e: { keyword: string; params: { additionalProperty?: string } }) =>
-            e.keyword === "additionalProperties" &&
-            e.params.additionalProperty === "rcord",
+            e.keyword === "additionalProperties" && e.params.additionalProperty === "rcord",
         ),
       ).toBe(true);
     });
@@ -871,15 +716,7 @@ describe("cli integration", () => {
     it("--dry-run still validates; invalid → exit 1", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
 
-      const code = await main([
-        "node",
-        "kt",
-        "record",
-        "add",
-        "--json",
-        "{}",
-        "--dry-run",
-      ]);
+      const code = await main(["node", "kt", "record", "add", "--json", "{}", "--dry-run"]);
 
       expect(code).toBe(1);
       expect(readStdout()).toBe("");
@@ -973,14 +810,7 @@ describe("cli integration", () => {
         })
         .reply(200, { results: [{ id: "1", revision: "1" }] });
 
-      const code = await main([
-        "node",
-        "kt",
-        "bulk-request",
-        "add",
-        "--json",
-        BULK_BODY,
-      ]);
+      const code = await main(["node", "kt", "bulk-request", "add", "--json", BULK_BODY]);
 
       expect(readStderr()).toBe("");
       expect(code).toBe(0);
@@ -1000,14 +830,7 @@ describe("cli integration", () => {
         ],
       });
 
-      const code = await main([
-        "node",
-        "kt",
-        "bulk-request",
-        "add",
-        "--json",
-        BAD_BODY,
-      ]);
+      const code = await main(["node", "kt", "bulk-request", "add", "--json", BAD_BODY]);
 
       expect(code).toBe(1);
       expect(readStdout()).toBe("");
@@ -1020,11 +843,7 @@ describe("cli integration", () => {
       // 'app' 必須欠落と 'rcord' 余分プロパティが両方積まれているはず
       expect(
         parsed.errors.some(
-          (e: {
-            instancePath: string;
-            keyword: string;
-            params: { missingProperty?: string };
-          }) =>
+          (e: { instancePath: string; keyword: string; params: { missingProperty?: string } }) =>
             e.instancePath === "/requests/0/payload" &&
             e.keyword === "required" &&
             e.params.missingProperty === "app",
@@ -1032,11 +851,7 @@ describe("cli integration", () => {
       ).toBe(true);
       expect(
         parsed.errors.some(
-          (e: {
-            instancePath: string;
-            keyword: string;
-            params: { additionalProperty?: string };
-          }) =>
+          (e: { instancePath: string; keyword: string; params: { additionalProperty?: string } }) =>
             e.instancePath === "/requests/0/payload" &&
             e.keyword === "additionalProperties" &&
             e.params.additionalProperty === "rcord",
@@ -1056,21 +871,12 @@ describe("cli integration", () => {
         ],
       });
 
-      const code = await main([
-        "node",
-        "kt",
-        "bulk-request",
-        "add",
-        "--json",
-        BAD_BODY,
-      ]);
+      const code = await main(["node", "kt", "bulk-request", "add", "--json", BAD_BODY]);
 
       expect(code).toBe(1);
       const parsed = JSON.parse(readStderr().trim());
       expect(
-        parsed.errors.some(
-          (e: { keyword: string }) => e.keyword === "bulkRequestUnknownSubapi",
-        ),
+        parsed.errors.some((e: { keyword: string }) => e.keyword === "bulkRequestUnknownSubapi"),
       ).toBe(true);
     });
 

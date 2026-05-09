@@ -16,9 +16,7 @@ describe("toGuestSpaceId", () => {
 
 describe("requireOpts", () => {
   it("does nothing when all required options are present", () => {
-    expect(() =>
-      requireOpts({ app: "1", id: "2" }, ["app", "id"]),
-    ).not.toThrow();
+    expect(() => requireOpts({ app: "1", id: "2" }, ["app", "id"])).not.toThrow();
   });
 
   it("throws CommanderError when a required option is missing", () => {

@@ -47,9 +47,7 @@ export const registerAppPluginsCommands = ({
   });
 
   // --- preview app plugins (GET + POST) ---
-  const previewPlugins = previewApp
-    .command("plugins")
-    .description("Preview app plugins");
+  const previewPlugins = previewApp.command("plugins").description("Preview app plugins");
 
   // GET /k/v1/preview/app/plugins.json
   const previewPluginsGet = previewPlugins

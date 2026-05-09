@@ -10,11 +10,7 @@ import {
   requireOpts,
 } from "../shared.js";
 
-export const registerCommentCommands = ({
-  record,
-}: {
-  record: Command;
-}): void => {
+export const registerCommentCommands = ({ record }: { record: Command }): void => {
   const comment = record
     .command("comment")
     .description("Comment operations (/k/v1/record/comment)");

@@ -10,11 +10,7 @@ import {
   requireOpts,
 } from "../shared.js";
 
-export const registerAppDeployCommands = ({
-  previewApp,
-}: {
-  previewApp: Command;
-}): void => {
+export const registerAppDeployCommands = ({ previewApp }: { previewApp: Command }): void => {
   const deploy = previewApp
     .command("deploy")
     .description("App deploy operations (/k/v1/preview/app/deploy)");

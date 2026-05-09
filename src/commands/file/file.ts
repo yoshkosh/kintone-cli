@@ -7,9 +7,7 @@ import { attachEndpoint } from "../../schema-option.js";
 import { getGlobalOptions, toGuestSpaceId, requireOpts } from "../shared.js";
 
 export const registerFileCommands = (program: Command): void => {
-  const file = program
-    .command("file")
-    .description("File operations (/k/v1/file)");
+  const file = program.command("file").description("File operations (/k/v1/file)");
 
   // GET /k/v1/file.json — バイナリレスポンス
   const fileGet = file
@@ -43,8 +41,7 @@ export const registerFileCommands = (program: Command): void => {
         const { writeFileSync } = await import("node:fs");
         writeFileSync(opts.output, buffer);
         process.stdout.write(
-          JSON.stringify({ downloaded: opts.output, size: buffer.length }) +
-            "\n",
+          JSON.stringify({ downloaded: opts.output, size: buffer.length }) + "\n",
         );
       } else {
         process.stdout.write(buffer);
@@ -87,9 +84,7 @@ export const registerFileCommands = (program: Command): void => {
         throw error;
       }
 
-      process.stdout.write(
-        JSON.stringify(JSON.parse(responseBody), undefined, 2) + "\n",
-      );
+      process.stdout.write(JSON.stringify(JSON.parse(responseBody), undefined, 2) + "\n");
     });
   attachEndpoint(fileAdd, { method: "POST", path: "/k/v1/file.json" });
 };

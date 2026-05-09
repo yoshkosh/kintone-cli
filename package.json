@@ -20,6 +20,8 @@
     "start": "node dist/index.js",
     "test": "node scripts/build-spec.mjs && vitest run",
     "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "prepack": "tsc && node scripts/build-spec.mjs"
   },
   "keywords": [
@@ -59,6 +61,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "prettier": "^3.8.3",
     "typescript": "^5.9.3",
     "undici": "^8.1.0",
     "vitest": "^4.1.4",

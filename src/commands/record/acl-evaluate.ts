@@ -1,21 +1,10 @@
 import { Command } from "commander";
 import { kintoneRequest } from "../../client.js";
 import { attachEndpoint } from "../../schema-option.js";
-import {
-  getGlobalOptions,
-  toGuestSpaceId,
-  writeJson,
-  requireOpts,
-} from "../shared.js";
+import { getGlobalOptions, toGuestSpaceId, writeJson, requireOpts } from "../shared.js";
 
-export const registerAclEvaluateCommands = ({
-  records,
-}: {
-  records: Command;
-}): void => {
-  const recordsAclEvaluate = records
-    .command("acl-evaluate")
-    .description("Records ACL evaluate");
+export const registerAclEvaluateCommands = ({ records }: { records: Command }): void => {
+  const recordsAclEvaluate = records.command("acl-evaluate").description("Records ACL evaluate");
 
   // GET /k/v1/records/acl/evaluate.json
   const recordsAclEvaluateGet = recordsAclEvaluate

@@ -10,12 +10,8 @@ import {
   requireOpts,
 } from "../shared.js";
 
-export const registerRecordCommands = (
-  program: Command,
-): { record: Command } => {
-  const record = program
-    .command("record")
-    .description("Record operations (/k/v1/record)");
+export const registerRecordCommands = (program: Command): { record: Command } => {
+  const record = program.command("record").description("Record operations (/k/v1/record)");
 
   // GET /k/v1/record.json
   const recordGet = record

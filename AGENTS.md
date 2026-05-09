@@ -51,7 +51,7 @@ node dist/index.js --help # run the locally built CLI
   (`slice(start, end)`, `clamp(value, min, max)`).
 - **Null vs undefined**: prefer `undefined`. Use `null` only when a
   downstream contract requires it.
-- **Comments**: explain *why*, never *what*. Mark intentional design comments
+- **Comments**: explain _why_, never _what_. Mark intentional design comments
   with `// NOTE: …`. Public exports get short English JSDoc when shape alone
   is not enough.
 - **File hygiene**: every file ends with a newline.
@@ -61,7 +61,7 @@ node dist/index.js --help # run the locally built CLI
 
 ## Things that are out of scope here
 
-- Re-explaining how to *use* the CLI — that is `skills/kt/SKILL.md` and
+- Re-explaining how to _use_ the CLI — that is `skills/kt/SKILL.md` and
   `README.md`.
 - Restating the release process — that lives in `prompts/release-plan.md`
   during the pre-public-release period and will graduate to a top-level doc

@@ -11,12 +11,8 @@ import {
   requireOpts,
 } from "../shared.js";
 
-export const registerSpaceCommands = (
-  program: Command,
-): { space: Command; spaces: Command } => {
-  const space = program
-    .command("space")
-    .description("Space operations (/k/v1/space)");
+export const registerSpaceCommands = (program: Command): { space: Command; spaces: Command } => {
+  const space = program.command("space").description("Space operations (/k/v1/space)");
 
   // GET /k/v1/space.json
   const spaceGet = space
@@ -128,9 +124,7 @@ export const registerSpaceCommands = (
   attachEndpoint(bodyUpdate, { method: "PUT", path: "/k/v1/space/body.json" });
 
   // --- space members ---
-  const members = space
-    .command("members")
-    .description("Space member operations");
+  const members = space.command("members").description("Space member operations");
 
   // GET /k/v1/space/members.json
   const membersGet = members
@@ -192,12 +186,8 @@ export const registerSpaceCommands = (
   // --- template space ---
   // NOTE: API マップ階層上は「スペース」配下、CLI 階層では `template` 親をトップレベルに持つ。
   // 物理ファイルとしては space.ts に同居（マップ準拠）。
-  const template = program
-    .command("template")
-    .description("Template operations");
-  const templateSpace = template
-    .command("space")
-    .description("Space template operations");
+  const template = program.command("template").description("Template operations");
+  const templateSpace = template.command("space").description("Space template operations");
 
   // POST /k/v1/template/space.json
   const templateSpaceAdd = templateSpace
@@ -236,13 +226,9 @@ export const registerSpaceCommands = (
 
   // --- spaces (plural, top-level) ---
   // NOTE: `spaces` は CLI 階層上トップレベル。`space` の子ではなく兄弟。
-  const spaces = program
-    .command("spaces")
-    .description("Spaces operations (/k/v1/spaces)");
+  const spaces = program.command("spaces").description("Spaces operations (/k/v1/spaces)");
 
-  const spacesStats = spaces
-    .command("statistics")
-    .description("Spaces statistics");
+  const spacesStats = spaces.command("statistics").description("Spaces statistics");
 
   // GET /k/v1/spaces/statistics.json
   const spacesStatsGet = spacesStats

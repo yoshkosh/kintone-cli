@@ -1,10 +1,6 @@
 import type { Command, OptionValues } from "commander";
 import { Ajv, type ErrorObject, type ValidateFunction } from "ajv";
-import {
-  getComponentSchemas,
-  getEndpointSchema,
-  type HttpMethod,
-} from "./spec.js";
+import { getComponentSchemas, getEndpointSchema, type HttpMethod } from "./spec.js";
 import { getEndpointMeta } from "./endpoint-registry.js";
 import { resolveBulkSubSchema } from "./bulk-request-schemas.js";
 
@@ -140,9 +136,10 @@ export const compileForBulkTop = (): ValidateFunction => {
   const cloned = structuredClone(bodySchema) as Record<string, unknown>;
 
   const components = getComponentSchemas();
-  const requestForm = structuredClone(
-    components.BulkRequestPostRequestForm,
-  ) as Record<string, unknown>;
+  const requestForm = structuredClone(components.BulkRequestPostRequestForm) as Record<
+    string,
+    unknown
+  >;
   const formProps = requestForm.properties as Record<string, unknown>;
   formProps.payload = { type: "object" };
   requestForm.additionalProperties = false;
@@ -168,11 +165,7 @@ export class JsonValidationError extends Error {
   readonly method: HttpMethod;
   readonly apiPath: string;
   readonly entries: JsonValidationErrorEntry[];
-  constructor(
-    method: HttpMethod,
-    apiPath: string,
-    errors: ErrorObject[] | null | undefined,
-  ) {
+  constructor(method: HttpMethod, apiPath: string, errors: ErrorObject[] | null | undefined) {
     super("json_validation_failed");
     this.name = "JsonValidationError";
     this.method = method;
@@ -211,9 +204,7 @@ export class JsonValidationError extends Error {
 // sub-schema を引いて payload を個別検証する。トップレベル外形が崩れている場合 (`requests`
 // が array でない、要素が object でない、method/api が string でない) は該当エントリを
 // スキップする (top の検証で別途エラーが立っている)。
-const validateBulkRequestSubPayloads = (
-  data: unknown,
-): JsonValidationErrorEntry[] => {
+const validateBulkRequestSubPayloads = (data: unknown): JsonValidationErrorEntry[] => {
   const entries: JsonValidationErrorEntry[] = [];
   if (!data || typeof data !== "object") return entries;
   const requests = (data as Record<string, unknown>).requests;
@@ -270,19 +261,13 @@ export const validateJsonOrThrow = (
   }
   const meta = getEndpointMeta(cmd);
   if (!meta) {
-    throw new Error(
-      "validateJsonOrThrow: command has no endpoint meta (attachEndpoint missing?)",
-    );
+    throw new Error("validateJsonOrThrow: command has no endpoint meta (attachEndpoint missing?)");
   }
   const mode = options?.mode ?? "body";
 
   // NOTE: bulkRequest だけは X2 (トップ schema 加工 + 二段目全委譲) で検証する。
   // 詳細は reports/bulk-request-validation-plan.md §設計判断 A 参照。
-  if (
-    mode === "body" &&
-    meta.method === "POST" &&
-    meta.path === "/k/v1/bulkRequest.json"
-  ) {
+  if (mode === "body" && meta.method === "POST" && meta.path === "/k/v1/bulkRequest.json") {
     const data = structuredClone(body);
     const entries: JsonValidationErrorEntry[] = [];
     const topValidate = compileForBulkTop();

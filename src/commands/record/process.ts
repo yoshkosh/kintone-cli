@@ -18,9 +18,7 @@ export const registerProcessCommands = ({
   records: Command;
 }): void => {
   // --- record status ---
-  const recordStatus = record
-    .command("status")
-    .description("Record status operations");
+  const recordStatus = record.command("status").description("Record status operations");
 
   // PUT /k/v1/record/status.json
   const recordStatusUpdate = recordStatus
@@ -58,9 +56,7 @@ export const registerProcessCommands = ({
   });
 
   // --- record assignees ---
-  const recordAssignees = record
-    .command("assignees")
-    .description("Record assignees operations");
+  const recordAssignees = record.command("assignees").description("Record assignees operations");
 
   // PUT /k/v1/record/assignees.json
   const recordAssigneesUpdate = recordAssignees
@@ -98,9 +94,7 @@ export const registerProcessCommands = ({
   });
 
   // --- records status ---
-  const recordsStatus = records
-    .command("status")
-    .description("Records status operations");
+  const recordsStatus = records.command("status").description("Records status operations");
 
   // PUT /k/v1/records/status.json
   const recordsStatusUpdate = recordsStatus

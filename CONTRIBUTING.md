@@ -30,5 +30,5 @@ filing a public issue.
 ## Code conventions
 
 See [`AGENTS.md`](AGENTS.md). The short version: ESM only, `type` over
-`interface`, comments explain *why* (prefixed `// NOTE:`), and the kintone
+`interface`, comments explain _why_ (prefixed `// NOTE:`), and the kintone
 OpenAPI Specification is the single source of truth for API shape.

@@ -4,7 +4,7 @@
 
 A command-line tool for the kintone REST API, designed for use by AI agents and ergonomic for human operators.
 
-> The design draws on Justin Poehnelt's article [*Rewrite your CLI for AI Agents*](https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/).
+> The design draws on Justin Poehnelt's article [_Rewrite your CLI for AI Agents_](https://justin.poehnelt.com/posts/rewrite-your-cli-for-ai-agents/).
 
 ---
 

@@ -11,9 +11,7 @@ import {
 
 // NOTE: `apps` は CLI 階層上トップレベル。`app` の子ではなく兄弟として登録する。
 export const registerAppsCommands = (program: Command): { apps: Command } => {
-  const apps = program
-    .command("apps")
-    .description("Apps operations (/k/v1/apps)");
+  const apps = program.command("apps").description("Apps operations (/k/v1/apps)");
 
   // GET /k/v1/apps.json — query: 全てオプション
   const appsGet = apps

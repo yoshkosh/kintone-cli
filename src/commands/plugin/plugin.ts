@@ -2,18 +2,10 @@ import { Command } from "commander";
 import { kintoneRequest } from "../../client.js";
 import { attachEndpoint } from "../../schema-option.js";
 import { validateJsonOrThrow } from "../../validator.js";
-import {
-  getGlobalOptions,
-  noGuestSpace,
-  writeJson,
-  dryRunOutput,
-  requireOpts,
-} from "../shared.js";
+import { getGlobalOptions, noGuestSpace, writeJson, dryRunOutput, requireOpts } from "../shared.js";
 
 export const registerPluginCommands = (program: Command): void => {
-  const plugin = program
-    .command("plugin")
-    .description("Plugin operations (/k/v1/plugin)");
+  const plugin = program.command("plugin").description("Plugin operations (/k/v1/plugin)");
 
   // POST /k/v1/plugin.json
   const pluginAdd = plugin
@@ -102,9 +94,7 @@ export const registerPluginCommands = (program: Command): void => {
   });
 
   // --- plugin apps ---
-  const pluginApps = plugin
-    .command("apps")
-    .description("Plugin app operations");
+  const pluginApps = plugin.command("apps").description("Plugin app operations");
 
   // GET /k/v1/plugin/apps.json
   const pluginAppsGet = pluginApps
@@ -135,9 +125,7 @@ export const registerPluginCommands = (program: Command): void => {
   });
 
   // --- plugins (plural) ---
-  const plugins = program
-    .command("plugins")
-    .description("Plugins operations (/k/v1/plugins)");
+  const plugins = program.command("plugins").description("Plugins operations (/k/v1/plugins)");
 
   // GET /k/v1/plugins.json
   const pluginsGet = plugins

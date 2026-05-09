@@ -25,10 +25,7 @@ import { registerThreadCommands } from "./commands/space/thread.js";
 import { registerGuestsCommands } from "./commands/space/guests.js";
 // plugin/
 import { registerPluginCommands } from "./commands/plugin/plugin.js";
-import {
-  installSchemaOption,
-  installSkipValidationOption,
-} from "./schema-option.js";
+import { installSchemaOption, installSkipValidationOption } from "./schema-option.js";
 import { JsonValidationError } from "./validator.js";
 
 // NOTE: package.json から動的に version を読む。0.6.0 で commander 引数が "0.5.3" の
@@ -46,18 +43,13 @@ export const createProgram = (): Command => {
     .name("kt")
     .description("kintone REST API CLI")
     .version(CLI_VERSION)
-    .option(
-      "--auth-type <type>",
-      "Authentication type: api-token, password, oauth",
-    )
+    .option("--auth-type <type>", "Authentication type: api-token, password, oauth")
     .option("--guest-space-id <id>", "Guest space ID");
 
   const preview = program
     .command("preview")
     .description("Preview (pre-live) operations (/k/v1/preview)");
-  const previewApp = preview
-    .command("app")
-    .description("Preview app operations");
+  const previewApp = preview.command("app").description("Preview app operations");
 
   // record
   const { record } = registerRecordCommands(program);
@@ -95,9 +87,7 @@ export const createProgram = (): Command => {
   return program;
 };
 
-export const main = async (
-  argv: readonly string[] = process.argv,
-): Promise<number> => {
+export const main = async (argv: readonly string[] = process.argv): Promise<number> => {
   const program = createProgram();
   program.exitOverride();
   try {

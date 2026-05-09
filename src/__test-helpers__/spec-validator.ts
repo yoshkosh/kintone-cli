@@ -71,9 +71,7 @@ export const assertRequestMatchesSpec = (match: RequestMatch): void => {
   try {
     getEndpointSchema(match.method, normalizedPath);
   } catch {
-    throw new Error(
-      `spec has no ${match.method} ${match.path} (nor guest-space template)`,
-    );
+    throw new Error(`spec has no ${match.method} ${match.path} (nor guest-space template)`);
   }
 
   if (match.query !== undefined) {
@@ -90,8 +88,7 @@ export const assertRequestMatchesSpec = (match: RequestMatch): void => {
 
   if (match.body !== undefined) {
     const validate = compileForEndpoint(match.method, normalizedPath, "body");
-    const bodyJson: unknown =
-      typeof match.body === "string" ? JSON.parse(match.body) : match.body;
+    const bodyJson: unknown = typeof match.body === "string" ? JSON.parse(match.body) : match.body;
     const data = structuredClone(bodyJson);
     if (!validate(data)) {
       throw new Error(

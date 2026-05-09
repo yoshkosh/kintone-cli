@@ -278,4 +278,3 @@ AIエージェント向けの利用ガイドとして `skills/kt/SKILL.md` を�
 - `npx skills add <path> -g -a claude-code -y` でClaude Codeのスキルとして登録
 - `/kt` で呼び出し可能
 - コマンド一覧、認証設定、利用ルール、使用例を記載
-

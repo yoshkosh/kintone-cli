@@ -2,10 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-const SPEC_PATH = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "spec.json",
-);
+const SPEC_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "spec.json");
 
 type JsonObject = Record<string, unknown>;
 type Operation = JsonObject;
@@ -32,10 +29,7 @@ export type EndpointSchema = {
   operation: Operation;
 };
 
-export const getEndpointSchema = (
-  method: HttpMethod,
-  apiPath: string,
-): EndpointSchema => {
+export const getEndpointSchema = (method: HttpMethod, apiPath: string): EndpointSchema => {
   const spec = loadSpec();
   const pathItem = spec.paths[apiPath];
   if (!pathItem) {

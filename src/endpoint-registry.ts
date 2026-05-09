@@ -5,10 +5,7 @@ export type EndpointMeta = { method: HttpMethod; path: string };
 
 const endpointMetaMap = new WeakMap<Command, EndpointMeta>();
 
-export const attachEndpoint = (
-  command: Command,
-  meta: EndpointMeta,
-): Command => {
+export const attachEndpoint = (command: Command, meta: EndpointMeta): Command => {
   endpointMetaMap.set(command, meta);
   return command;
 };

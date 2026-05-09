@@ -2,13 +2,7 @@ import { Command } from "commander";
 import { kintoneRequest } from "../../client.js";
 import { attachEndpoint } from "../../schema-option.js";
 import { validateJsonOrThrow } from "../../validator.js";
-import {
-  getGlobalOptions,
-  noGuestSpace,
-  writeJson,
-  dryRunOutput,
-  requireOpts,
-} from "../shared.js";
+import { getGlobalOptions, noGuestSpace, writeJson, dryRunOutput, requireOpts } from "../shared.js";
 
 export const registerBulkRequestCommands = (program: Command): void => {
   const bulkRequest = program
