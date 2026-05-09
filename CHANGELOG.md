@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-05-09
+
+### Changed
+
+- All user-facing surfaces now explicitly state that this CLI is an
+  unofficial third-party tool, not affiliated with or endorsed by Cybozu,
+  Inc. (the vendor of kintone). Updated: `kt --help` description, npm
+  package description, `README.md`, `README.ja.md`, `skills/kt/SKILL.md`,
+  `SECURITY.md`, and `AGENTS.md`. No runtime behavior change.
+
+### Added
+
+- Prettier (3.x) as the canonical source-code formatter. New files:
+  `.prettierrc.json` (`printWidth: 100`, `trailingComma: "all"`, defaults
+  otherwise — `singleQuote` stays `false` to match the existing codebase),
+  `.prettierignore`, and `format` / `format:check` npm scripts.
+  Repository contents have been reformatted accordingly.
+
 ## [0.6.1] - 2026-05-06
 
 ### Fixed
@@ -110,7 +128,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   comment APIs, and the `bulk-request` / `plugin` / `space` / `guests` /
   `statistics` commands. See git history for per-commit detail.
 
-[Unreleased]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/yoshkosh/kintone-cli/releases/tag/v0.6.0
 [0.5.5]: https://github.com/yoshkosh/kintone-cli/compare/v0.5.4...v0.5.5
