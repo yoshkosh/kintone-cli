@@ -58,6 +58,27 @@ DoD: `--sanitize` 実装 + テスト追加 + README「制約事項」から該�
 
 DoD: `SECURITY.md` に挙げた残項目（ファイルパス・制御文字・URL エンコーディング）を順次塞ぐ。完了次第 README「制約事項」から該当行を削除。
 
+### preview/live 用語のドキュメント統一
+
+<!-- meta: docs / on-demand -->
+
+`SKILL.md` のドッグフーディング中に「live 環境」が一般 kintone 利用者にとって聞き覚えのない表現であることが判明。公式表記を再調査したところ、英語版でも 2 系統のブレがあった:
+
+- 開発者ドキュメント (kintone.dev) / OpenAPI Spec: `pre-live` settings/App、`live` settings/App
+- エンドユーザーヘルプ (kintone.help EN): UI 機能名 `Preview` + `test environment`、本番側は `actual environment` / `live App`
+- 日本語ヘルプ: 「動作テスト環境」「テスト環境」「プレビュー」 / 「運用環境」「運用中のアプリ」「公開中のアプリ」
+
+方針: CLI のサブコマンド名（`kt preview app ...`）と一致するメリットが大きく、開発者ドキュメントとも整合するため `preview` / `live` を維持する。ただし `live` は一般利用者に馴染みが薄いので、最初の出現箇所で訳語を注記する。`pre-live` は Spec 限定のマイナー表記なので採用しない。
+
+ファイル別の対応:
+
+- `skills/kt/SKILL.md` (英語): `preview` / `live` を維持、最初の出現で「(= テスト環境 / 運用環境)」相当の注記を追加
+- `README.md` (英語): `preview environment` / `live environment` で統一（現在 `production` 表記の箇所を寄せる）
+- `README.ja.md` (日本語): 概念説明では「テスト環境」「運用環境」、CLI のサブコマンド名としての `preview` は維持
+- `docs/spec.md` / `docs/decisions.md` / `prompts/*.md`: 内部設計・作業メモなので現状維持（識別子としての `live`/`preview`）
+
+DoD: 上記 4 ファイルの表記が方針どおりに統一され、SKILL.md / README (英・日) のいずれを読んでも preview/live と テスト/運用 の対応関係が初出箇所で把握できる。
+
 ---
 
 ## Later
