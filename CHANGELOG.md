@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-17
+
 ### Added
 
 - `--json` now accepts `@path` to read the payload from a file, matching the
@@ -138,7 +140,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   comment APIs, and the `bulk-request` / `plugin` / `space` / `guests` /
   `statistics` commands. See git history for per-commit detail.
 
-[Unreleased]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/yoshkosh/kintone-cli/releases/tag/v0.6.0
