@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `--json` now accepts `@path` to read the payload from a file, matching the
+  `curl -d @file.json` / `gh api --input @file.json` convention. Lets large
+  payloads bypass the shell's ARG_MAX limit (around 1 MB on macOS, around
+  2 MB on Linux — the effective ceiling is lower because it shares the limit
+  with environment variables). The prefix is checked only at the first
+  character of the argument, so payload values like `{"link":"@somewhere"}`
+  are unaffected. See `skills/kt/SKILL.md` for usage.
+
 ## [0.6.2] - 2026-05-09
 
 ### Changed

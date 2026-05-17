@@ -362,3 +362,35 @@
 - `prompts/release-plan.md` A2 の install 表記も npm に統一（私的な計画書だが、Phase 4 以降の判断ブレを防ぐため）。
 
 **参考**: Phase 3 リリース作業（`git log -- README.md README.ja.md` で該当コミット参照）
+
+---
+
+## 2026-05-14 `--json @path` ファイル読み込み対応
+
+**決定**: 全 `--json` callsite（30 箇所）で `@<path>` プレフィックスを「ファイル読み込み」として解釈する。`src/commands/shared.ts` の `parseJsonOption(raw): Promise<unknown>` ヘルパに集約し、各 action で `await parseJsonOption(opts.json)` に置換した。`@` で始まらない値は従来通り `JSON.parse(raw)` 経由で扱う。エラーは全て `--json @path: ...` プレフィックスを持つ単純な `Error` として throw し、既存 `main()` の `Error:` 出力経路に乗せる（`JsonValidationError` のような構造化 JSON 出力は採用しない — 引数解釈段階のエラーは validation エラーと層が異なる）。
+
+**理由**: コマンドラインに巨大な JSON を直書きすると ARG_MAX 上限に容易に到達する。getconf 上の上限は **macOS で約 1 MB / Linux で約 2 MB** だが、引数 + 環境変数の合算上限なので実効値はもっと低い（Linux では 128 KB 程度まで下がりうる）。`E2BIG` はシェルレベルで出るため CLI のエラーパスでは捕捉できず、エージェント体験が悪い。`@path` 規約は `curl` / `gh` が採用しており、有効な JSON は `@` で始まらないので prefix の曖昧性はゼロ、学習コストもゼロ。
+
+**設計判断の細目**:
+
+- 判定は `opts.json` の **先頭 1 文字目のみ**。payload 内部の `@` で始まる文字列値（`{"link":"@somewhere"}`）には触らない。
+- `@` 単独は即エラー（`--json @path: empty path after '@'`）。
+- `@-` は **stdin として解釈しない**。curl は `--data @-` を stdin と扱うが、本実装ではファイル名 `-` として `readFile("-", "utf8")` を試みて `ENOENT` で `--json @path: file not found: -` になる。SKILL.md の「No file redirects」方針との整合上、stdin 経路は採らない。
+- 相対パスは `process.cwd()` 基準（`fs.readFile` 標準挙動）。チルダ展開（`~/...`）は CLI 側では行わず、シェル展開のみに任せる。
+- encoding は UTF-8 固定。BOM は剥がさない（`JSON.parse` が reject し、`--json @path: invalid JSON in <path>: ...` 経路に乗る）。サイズ上限は課さない。
+- `--schema` 指定時は既存 `preAction` フックが `CommanderError(0, "schema.output", "")` を throw して action body 自体を実行しないため、`parseJsonOption` は呼ばれない。副作用ゼロが保たれる（`cli.test.ts` に回帰テスト 1 ケース）。
+
+**不採用案**:
+
+- stdin / pipe（`--json -` または `<` redirect）: SKILL.md の「No file redirects」方針と衝突。Claude Code 側で permission heuristic がリダイレクトを reject する設計のため、エージェントから扱えない。
+- `--json-file <path>` 別オプション: `--json` と `--json-file` の二系統化はバリデーション・ドキュメント・テストの実装表面が増える割に、`@` プレフィックス慣習で十分。
+- 構造化 JSON エラー（`JsonValidationError` 相当）: validation エラーとは層が異なる。`JSON.parse` 失敗（不正 JSON）が引き続きテキスト出力なのと整合させる。
+- ファイルサイズ上限・MIME 検査・パス traversal 抑止: ユーザが明示指定したファイル。curl も抑制しない。SECURITY 監査は将来の別フェーズで。
+- BOM strip: 「ファイルの中身がそのまま送られる」前提が崩れるので採らない。
+- `--schema` 時の file read スキップ判定: ランタイム上は preAction の短絡で実害なし。専用分岐は YAGNI。
+
+**ARG_MAX 実証は手動 smoke で担保**: `cli.test.ts` は `main(argv)` を直接呼ぶインプロセス方式のため、シェル ARG_MAX 境界そのものは自動テストでは通らない。自動テストが担保するのは「ファイル経由で同じリクエスト body が生成される」ところまで。1 MB 超 payload が ARG_MAX エラーなしに送れることは、リリース前に `kt records add --json @big-100records.json` 等で手動確認する。
+
+**影響**: 全 `--json` callsite が `async helper` 経由になる（既存 action は全て async なので影響なし）。`JSON.parse` の戻り値型 `any` が `parseJsonOption` の `Promise<unknown>` に降格するため、直接プロパティアクセスしている callsite では型ガード / cast が必要になる。本対応の置換着手前に grep 確認した結果、`records.ts` の DELETE callsite（`params` に渡す箇所）のみ `Record<string, unknown>` cast が必要だった。他 29 箇所は validator / dryRunOutput / kintoneRequest に値を渡すだけのため影響なし。
+
+**参考**: `prompts/json-with-path/plan.md`

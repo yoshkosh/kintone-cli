@@ -181,19 +181,37 @@ kt record add --schema | jq .operation.requestBody
 
 ```sh
 # 1. dry-run でローカル検証する。HTTP は呼ばれない。
-kt record add --json "$(cat payload.json)" --dry-run
+kt record add --json @payload.json --dry-run
 
 # 2. --dry-run を外して実送信する。
-kt record add --json "$(cat payload.json)"
+kt record add --json @payload.json
 ```
 
 ステップ 1 で失敗した場合、エージェントは構造化エラーを参照してペイロードを修正できます。ステップ 2 はステップ 1 を通過したときのみ実行する運用が可能です。
+
+> `--json @path` 形式は payload をファイルから読み込みます。`--json "$(cat payload.json)"` よりも大きな payload に向いており、シェルの ARG_MAX 上限（macOS で約 1 MB、Linux で約 2 MB。環境変数と合算した実効上限はもっと低い）を回避できます。詳細は下記「`--json @path` による大容量 payload 入力」を参照してください。
+
+### `--json @path` による大容量 payload 入力
+
+`--json` は `@path` プレフィックスでファイル読み込みに対応します（`curl -d @file.json` および `gh api --input @file.json` と同じ規約）。
+
+```sh
+kt record add --json @payload.json
+kt bulk-request add --json @bulk-100.json
+```
+
+- パスはカレントディレクトリ基準で解決されます。
+- ファイルは UTF-8 の JSON である必要があります。BOM は除去せず、不正な JSON として扱います。
+- `@` は**引数の先頭 1 文字目のみ**で判定します。`{"link":"@somewhere"}` のような payload 内部の文字列値には影響しません。
+- `@-` は **stdin ではありません**。文字どおりファイル名 `-` として解釈されます。実在するパスを指定してください。
+- チルダ（`~/...`）は CLI 側では展開しません。引用なしでシェル展開させるか、`$HOME` や絶対パスを使ってください。
+- エラーメッセージにはパスが含まれます：`--json @path: file not found: ./payload.json` / `--json @path: invalid JSON in ./payload.json: ...`
 
 ### プレビューで変更してから運用環境にデプロイする
 
 ```sh
 # 1. プレビュー環境のフォームフィールドを更新する。
-kt preview app form-fields update --app 42 --json "$(cat fields.json)"
+kt preview app form-fields update --app 42 --json @fields.json
 
 # 2. プレビューを運用環境にデプロイする。
 kt preview app deploy add --json '{"apps":[{"app":42}]}'

@@ -30,7 +30,23 @@ Claude Code's permission checker has security heuristics that force manual appro
    - RIGHT: `kt records get --app 1 | jq '.records[].id'`
    - Non-ASCII field codes need `."名前"` syntax and embed `"` in the jq expression. This may still prompt once; accept it, or rename to ASCII via `--fields`.
 4. **No `||` or `&&` chains.** Run sequences (e.g. `--dry-run` first, then the real call) as separate Bash tool calls.
-5. **No file redirects (`>`, `>>`).** Process NDJSON / JSON output directly via `| jq`; don't write to files.
+5. **No file redirects (`>`, `>>`).** Process NDJSON / JSON output directly via `| jq`; don't write to files. Output stays inline. For large _inputs_, see "`--json @path` (file input for large payloads)" below — `@path` is a read-only file load and does not violate this rule.
+
+### `--json @path` (file input for large payloads)
+
+For payloads that exceed the shell ARG_MAX limit, prefix the path with `@`:
+
+```bash
+kt record add --json @./payload.json
+kt bulk-request add --json @./bulk-100.json
+```
+
+- Path is resolved from the current working directory (`process.cwd()`).
+- The file must be UTF-8 JSON. BOM is not stripped (results in an invalid-JSON error).
+- `@` is recognized only as the first character of the argument; payload values like `{"link":"@somewhere"}` pass through unchanged.
+- `@-` is **not stdin**. It is treated as a file literally named `-`. Use a real path.
+- Tilde (`~/...`) is **not expanded by the CLI**. Either leave it unquoted so the shell expands it, or use `$HOME` / an absolute path.
+- Errors carry the path: `--json @path: file not found: ./payload.json` / `--json @path: invalid JSON in ./payload.json: ...`
 
 ## Authentication
 

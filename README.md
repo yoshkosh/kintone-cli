@@ -181,19 +181,37 @@ Prints the request-body schema for `POST /k/v1/record.json`. Useful for shaping 
 
 ```sh
 # 1. Validate locally. No HTTP request is made.
-kt record add --json "$(cat payload.json)" --dry-run
+kt record add --json @payload.json --dry-run
 
 # 2. Drop --dry-run to send for real.
-kt record add --json "$(cat payload.json)"
+kt record add --json @payload.json
 ```
 
 If step 1 fails, the agent reads the structured error and fixes the payload. Step 2 only runs once step 1 succeeds.
+
+> The `--json @path` form reads the payload from a file. It is preferred over `--json "$(cat payload.json)"` for large payloads, which can exceed the shell ARG_MAX limit (around 1 MB on macOS, around 2 MB on Linux — the effective ceiling is lower because it includes environment variables). See "Large payloads via `--json @path`" below.
+
+### Large payloads via `--json @path`
+
+`--json` accepts an `@path` prefix to read the payload from a file (same convention as `curl -d @file.json` and `gh api --input @file.json`):
+
+```sh
+kt record add --json @payload.json
+kt bulk-request add --json @bulk-100.json
+```
+
+- Path is resolved from the current working directory.
+- The file must be UTF-8 JSON. BOM is not stripped (treated as invalid JSON).
+- `@` is recognized only as the **first character of the argument**. Payload values like `{"link":"@somewhere"}` are not affected.
+- `@-` is **not stdin**. It is treated as a file literally named `-`. Use a real path.
+- Tilde (`~/...`) is **not expanded by the CLI**. Leave it unquoted so the shell expands it, or use `$HOME` / an absolute path.
+- Errors include the path: `--json @path: file not found: ./payload.json` / `--json @path: invalid JSON in ./payload.json: ...`
 
 ### Edit the preview, then deploy to production
 
 ```sh
 # 1. Update form fields in the preview environment.
-kt preview app form-fields update --app 42 --json "$(cat fields.json)"
+kt preview app form-fields update --app 42 --json @fields.json
 
 # 2. Deploy the preview to production.
 kt preview app deploy add --json '{"apps":[{"app":42}]}'
