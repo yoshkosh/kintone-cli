@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fetch as undiciFetch, MockAgent, setGlobalDispatcher } from "undici";
 import { main } from "./cli.js";
 import { assertRequestMatchesSpec } from "./__test-helpers__/spec-validator.js";
@@ -949,6 +952,162 @@ describe("cli integration", () => {
       expect(readStdout()).toBe("");
       const parsed = JSON.parse(readStderr().trim());
       expect(parsed.error).toBe("json_validation_failed");
+    });
+  });
+
+  describe("--json @path (file input)", () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+      tmpDir = await mkdtemp(join(tmpdir(), "kt-json-at-path-"));
+    });
+
+    afterEach(async () => {
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it("reads payload from file and sends as POST body", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const INPUT_JSON = '{"app":1,"record":{"name":{"value":"Alice"}}}';
+      const payloadPath = join(tmpDir, "payload.json");
+      await writeFile(payloadPath, INPUT_JSON, "utf8");
+      const pool = createValidatedPool(mockAgent, BASE_URL);
+      pool
+        .intercept({
+          path: "/k/v1/record.json",
+          method: "POST",
+          body: INPUT_JSON,
+          headers: {
+            "X-Cybozu-API-Token": "test-token",
+            "Content-Type": "application/json",
+          },
+        })
+        .reply(200, { id: "100", revision: "1" });
+
+      const code = await main(["node", "kt", "record", "add", "--json", `@${payloadPath}`]);
+
+      expect(readStderr()).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+    });
+
+    it("nonexistent file → exit 1 with file-not-found prefix on stderr", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const missing = join(tmpDir, "missing.json");
+
+      const code = await main(["node", "kt", "record", "add", "--json", `@${missing}`]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      expect(readStderr()).toContain(`--json @path: file not found: ${missing}`);
+    });
+
+    it("invalid JSON in file → exit 1 with invalid-JSON prefix on stderr", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const badPath = join(tmpDir, "bad.json");
+      await writeFile(badPath, "{not json", "utf8");
+
+      const code = await main(["node", "kt", "record", "add", "--json", `@${badPath}`]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      expect(readStderr()).toContain(`--json @path: invalid JSON in ${badPath}`);
+    });
+
+    it("empty path (--json @) → exit 1 with empty-path message", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+
+      const code = await main(["node", "kt", "record", "add", "--json", "@"]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      expect(readStderr()).toContain("--json @path: empty path after '@'");
+    });
+
+    it("--schema with nonexistent @path still short-circuits to exit 0 with schema", async () => {
+      // NOTE: preAction フックが action body より先に走り、CommanderError(0) で action 全体を
+      // bypass するため、@path の file read には到達しない (副作用ゼロが保たれる回帰テスト)。
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const missing = join(tmpDir, "nonexistent.json");
+
+      const code = await main(["node", "kt", "record", "add", "--json", `@${missing}`, "--schema"]);
+
+      expect(code).toBe(0);
+      expect(readStderr()).toBe("");
+      expect(readStdout()).toContain('"path":"/k/v1/record.json"');
+    });
+
+    it("--dry-run with @path: no HTTP fire, dry-run output reflects file contents", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const INPUT_JSON = '{"app":1,"record":{"name":{"value":"Alice"}}}';
+      const payloadPath = join(tmpDir, "dry.json");
+      await writeFile(payloadPath, INPUT_JSON, "utf8");
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "add",
+        "--json",
+        `@${payloadPath}`,
+        "--dry-run",
+      ]);
+
+      expect(readStderr()).toBe("");
+      expect(code).toBe(0);
+      const expected =
+        JSON.stringify(
+          {
+            dryRun: true,
+            method: "POST",
+            path: "/k/v1/record.json",
+            body: JSON.parse(INPUT_JSON),
+          },
+          undefined,
+          2,
+        ) + "\n";
+      expect(readStdout()).toBe(expected);
+    });
+
+    it("bulk-request add --json @path: large payload via file passes through unchanged", async () => {
+      // NOTE: cli.test.ts は main(argv) を直接呼ぶインプロセス方式のため、シェル ARG_MAX 境界
+      // 自体はここでは通らない。本テストは「ファイル経由で同じリクエスト body が生成される」
+      // ことの確認まで。実 ARG_MAX 回避は手動 smoke で担保 (docs/decisions.md 参照)。
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const records = Array.from({ length: 100 }, (_, i) => ({
+        name: { value: `record-${i}` },
+      }));
+      const bulkPayload = {
+        requests: [
+          {
+            method: "POST",
+            api: "/k/v1/records.json",
+            payload: { app: 1, records },
+          },
+        ],
+      };
+      const BULK_BODY = JSON.stringify(bulkPayload);
+      const bulkPath = join(tmpDir, "bulk-100.json");
+      await writeFile(bulkPath, BULK_BODY, "utf8");
+
+      const pool = createValidatedPool(mockAgent, BASE_URL);
+      pool
+        .intercept({
+          path: "/k/v1/bulkRequest.json",
+          method: "POST",
+          body: BULK_BODY,
+          headers: {
+            "X-Cybozu-API-Token": "test-token",
+            "Content-Type": "application/json",
+          },
+        })
+        .reply(200, { results: [{ ids: ["1"], revisions: ["1"] }] });
+
+      const code = await main(["node", "kt", "bulk-request", "add", "--json", `@${bulkPath}`]);
+
+      expect(readStderr()).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
     });
   });
 });
