@@ -8,6 +8,7 @@ import {
   writeJson,
   dryRunOutput,
   requireOpts,
+  parseJsonOption,
 } from "../shared.js";
 
 type CursorOptions = {
@@ -117,7 +118,7 @@ export const registerRecordsCommands = (program: Command): { records: Command } 
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const body = JSON.parse(opts.json);
+      const body = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
@@ -145,7 +146,7 @@ export const registerRecordsCommands = (program: Command): { records: Command } 
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const body = JSON.parse(opts.json);
+      const body = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
@@ -173,7 +174,7 @@ export const registerRecordsCommands = (program: Command): { records: Command } 
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const parsed = JSON.parse(opts.json);
+      const parsed = (await parseJsonOption(opts.json)) as Record<string, unknown>;
       // NOTE: spec 上は parameters 経由 (in: query) のため query schema で検証。
       // CLI は --json を params に展開する設計。
       validateJsonOrThrow(cmd, opts, parsed, { mode: "query" });

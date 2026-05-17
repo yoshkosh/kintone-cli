@@ -8,6 +8,7 @@ import {
   writeJson,
   dryRunOutput,
   requireOpts,
+  parseJsonOption,
 } from "../shared.js";
 
 export const registerRecordCommands = (program: Command): { record: Command } => {
@@ -42,7 +43,7 @@ export const registerRecordCommands = (program: Command): { record: Command } =>
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const body = JSON.parse(opts.json);
+      const body = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
@@ -70,7 +71,7 @@ export const registerRecordCommands = (program: Command): { record: Command } =>
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const body = JSON.parse(opts.json);
+      const body = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {

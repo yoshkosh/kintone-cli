@@ -8,6 +8,7 @@ import {
   writeJson,
   dryRunOutput,
   requireOpts,
+  parseJsonOption,
 } from "../shared.js";
 
 export const registerAppFormFieldsCommands = ({
@@ -88,7 +89,7 @@ export const registerAppFormFieldsCommands = ({
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const body = JSON.parse(opts.json);
+      const body = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
@@ -123,7 +124,7 @@ export const registerAppFormFieldsCommands = ({
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const body = JSON.parse(opts.json);
+      const body = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {

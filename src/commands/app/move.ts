@@ -8,6 +8,7 @@ import {
   writeJson,
   dryRunOutput,
   requireOpts,
+  parseJsonOption,
 } from "../shared.js";
 
 export const registerAppMoveCommands = ({ app }: { app: Command }): void => {
@@ -22,7 +23,7 @@ export const registerAppMoveCommands = ({ app }: { app: Command }): void => {
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const body = JSON.parse(opts.json);
+      const body = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {

@@ -8,6 +8,7 @@ import {
   writeJson,
   dryRunOutput,
   requireOpts,
+  parseJsonOption,
 } from "../shared.js";
 
 // NOTE: API マップ階層との対応:
@@ -144,7 +145,7 @@ const registerSettingUpdate = ({ parent, path }: { parent: Command; path: string
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const body = JSON.parse(opts.json);
+      const body = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {

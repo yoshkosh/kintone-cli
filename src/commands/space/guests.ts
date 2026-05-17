@@ -9,6 +9,7 @@ import {
   dryRunOutput,
   noGuestSpace,
   requireOpts,
+  parseJsonOption,
 } from "../shared.js";
 
 // NOTE: `space guests update` は通常スペースに加えてゲストスペースも対象（toGuestSpaceId 経由）。
@@ -33,7 +34,7 @@ export const registerGuestsCommands = ({
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const bodyData = JSON.parse(opts.json);
+      const bodyData = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, bodyData);
 
       if (opts.dryRun) {
@@ -72,7 +73,7 @@ export const registerGuestsCommands = ({
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
       noGuestSpace(global, "guests add", opts);
-      const bodyData = JSON.parse(opts.json);
+      const bodyData = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, bodyData);
 
       if (opts.dryRun) {

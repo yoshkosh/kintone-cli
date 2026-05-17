@@ -9,6 +9,7 @@ import {
   dryRunOutput,
   noGuestSpace,
   requireOpts,
+  parseJsonOption,
 } from "../shared.js";
 
 export const registerSpaceCommands = (program: Command): { space: Command; spaces: Command } => {
@@ -42,7 +43,7 @@ export const registerSpaceCommands = (program: Command): { space: Command; space
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const body = JSON.parse(opts.json);
+      const body = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
@@ -100,7 +101,7 @@ export const registerSpaceCommands = (program: Command): { space: Command; space
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const bodyData = JSON.parse(opts.json);
+      const bodyData = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, bodyData);
 
       if (opts.dryRun) {
@@ -157,7 +158,7 @@ export const registerSpaceCommands = (program: Command): { space: Command; space
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const bodyData = JSON.parse(opts.json);
+      const bodyData = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, bodyData);
 
       if (opts.dryRun) {
@@ -198,7 +199,7 @@ export const registerSpaceCommands = (program: Command): { space: Command; space
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const bodyData = JSON.parse(opts.json);
+      const bodyData = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, bodyData);
 
       if (opts.dryRun) {
