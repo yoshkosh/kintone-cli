@@ -13,8 +13,9 @@ allowed-tools: Bash(npx:*) Bash(kt:*)
 > [!NOTE]
 > This is an unofficial third-party tool, not affiliated with Cybozu, Inc.
 
-> Run commands with `npx @yoshkosh/kintone-cli` (e.g. `npx @yoshkosh/kintone-cli record get --app 1 --id 1`).
-> All examples below use `kt` as shorthand — replace with `npx @yoshkosh/kintone-cli` if `kt` is not on PATH.
+> Run commands with `kt` (e.g. `kt record get --app 1 --id 1`).
+> Only if `kt` is missing from PATH — it fails with `command not found` (typically exit code 127), not an API or argument error — retry the same arguments once with `npx -y @yoshkosh/kintone-cli`.
+> After that fallback, use `npx -y @yoshkosh/kintone-cli` for the rest of the session instead of retrying `kt` each time.
 
 ## CRITICAL: Bash command formatting rules
 
