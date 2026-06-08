@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-06-08
+
+### Changed
+
+- `skills/kt/SKILL.md`: agents now run `kt` first and fall back to
+  `npx -y @yoshkosh/kintone-cli` only when `kt` is absent from PATH
+  (exit code 127 / `command not found`). API errors and argument errors
+  do not trigger the fallback. Once the fallback fires, `npx` is used
+  for the rest of the session to avoid repeated failed `kt` calls.
+
 ## [0.7.0] - 2026-05-17
 
 ### Added
@@ -141,6 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `statistics` commands. See git history for per-commit detail.
 
 [Unreleased]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.0...HEAD
+[0.7.1]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.0...v0.6.1
