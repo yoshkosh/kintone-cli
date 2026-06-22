@@ -4,7 +4,7 @@ description: "kintone REST API CLI. Use when operating on kintone apps, records,
 compatibility: Requires Node.js.
 metadata:
   author: yoshkosh
-  version: "0.7.1"
+  version: "0.7.2"
 allowed-tools: Bash(npx:*) Bash(kt:*)
 ---
 
@@ -29,7 +29,11 @@ Claude Code's permission checker has security heuristics that force manual appro
 3. **Only `| jq` for filtering — no `python3` or other downstream commands.** Single-quote-only `jq` expressions are safest.
    - WRONG: `kt records get --app 1 | python3 -c "..."` (not allow-listed)
    - RIGHT: `kt records get --app 1 | jq '.records[].id'`
-   - Non-ASCII field codes need `."名前"` syntax and embed `"` in the jq expression. This may still prompt once; accept it, or rename to ASCII via `--fields`.
+   - **Non-ASCII field codes (Japanese, Chinese, etc.) require quoted-key syntax — bare `.名前` is a jq syntax error.** Most kintone deployments use non-ASCII field codes, so this is the common case, not an edge case.
+     - WRONG: `jq '.records[].名前.value'` → `syntax error, unexpected INVALID_CHARACTER`
+     - RIGHT: `jq '.records[]."名前".value'` (object index with quoted key)
+     - RIGHT: `jq '.records[]["名前"].value'` (bracket notation)
+     - Both forms work inside a single-quoted shell expression; the embedded `"` does not need escaping.
 4. **No `||` or `&&` chains.** Run sequences (e.g. `--dry-run` first, then the real call) as separate Bash tool calls.
 5. **No file redirects (`>`, `>>`).** Process NDJSON / JSON output directly via `| jq`; don't write to files. Output stays inline. For large _inputs_, see "`--json @path` (file input for large payloads)" below — `@path` is a read-only file load and does not violate this rule.
 
@@ -335,6 +339,9 @@ kt records get --app 42 --query 'ステータス = "完了"' --fields "レコー
 
 # Export all records as NDJSON, filter with jq
 kt records get --app 42 --page-all --fields "レコード番号,名前" | jq 'select(.["名前"].value | test("田中"))'
+
+# Project records to {id, name} via non-ASCII field codes (quoted-key syntax)
+kt records get --app 42 --fields "レコード番号,名前" | jq '.records[] | {id: ."レコード番号".value, name: ."名前".value}'
 
 # Add a record (dry-run first)
 kt record add --dry-run --json '{"app": 42, "record": {"名前": {"value": "新規"}}}'

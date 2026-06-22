@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-06-22
+
+### Changed
+
+- `skills/kt/SKILL.md`: clarified jq usage with non-ASCII field codes
+  (Japanese, Chinese, etc.). Bare `.名前` is a jq syntax error; the
+  quoted-key forms `."名前"` and `["名前"]` are now shown with explicit
+  WRONG/RIGHT examples in the Bash command formatting rules section,
+  and an additional Examples entry demonstrates projecting records via
+  non-ASCII field codes. Removed the misleading "rename to ASCII via
+  `--fields`" hint (the `--fields` flag selects fields, it does not
+  rename them).
+
 ## [0.7.1] - 2026-06-08
 
 ### Changed
@@ -150,7 +163,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   comment APIs, and the `bulk-request` / `plugin` / `space` / `guests` /
   `statistics` commands. See git history for per-commit detail.
 
-[Unreleased]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.2...v0.7.0
 [0.6.2]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.1...v0.6.2
