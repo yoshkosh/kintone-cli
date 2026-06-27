@@ -4,7 +4,7 @@ description: "kintone REST API CLI. Use when operating on kintone apps, records,
 compatibility: Requires Node.js.
 metadata:
   author: yoshkosh
-  version: "0.7.2"
+  version: "0.7.3"
 allowed-tools: Bash(npx:*) Bash(kt:*)
 ---
 
@@ -28,12 +28,7 @@ Claude Code's permission checker has security heuristics that force manual appro
    - `--json '{"app": 1, ...}'` is fine — the inner `"` characters aren't consecutive.
 3. **Only `| jq` for filtering — no `python3` or other downstream commands.** Single-quote-only `jq` expressions are safest.
    - WRONG: `kt records get --app 1 | python3 -c "..."` (not allow-listed)
-   - RIGHT: `kt records get --app 1 | jq '.records[].id'`
-   - **Non-ASCII field codes (Japanese, Chinese, etc.) require quoted-key syntax — bare `.名前` is a jq syntax error.** Most kintone deployments use non-ASCII field codes, so this is the common case, not an edge case.
-     - WRONG: `jq '.records[].名前.value'` → `syntax error, unexpected INVALID_CHARACTER`
-     - RIGHT: `jq '.records[]."名前".value'` (object index with quoted key)
-     - RIGHT: `jq '.records[]["名前"].value'` (bracket notation)
-     - Both forms work inside a single-quoted shell expression; the embedded `"` does not need escaping.
+   - RIGHT: `kt records get --app 1 | jq '."records"[]."id"'`
 4. **No `||` or `&&` chains.** Run sequences (e.g. `--dry-run` first, then the real call) as separate Bash tool calls.
 5. **No file redirects (`>`, `>>`).** Process NDJSON / JSON output directly via `| jq`; don't write to files. Output stays inline. For large _inputs_, see "`--json @path` (file input for large payloads)" below — `@path` is a read-only file load and does not violate this rule.
 
@@ -52,6 +47,25 @@ kt bulk-request add --json @./bulk-100.json
 - `@-` is **not stdin**. It is treated as a file literally named `-`. Use a real path.
 - Tilde (`~/...`) is **not expanded by the CLI**. Either leave it unquoted so the shell expands it, or use `$HOME` / an absolute path.
 - Errors carry the path: `--json @path: file not found: ./payload.json` / `--json @path: invalid JSON in ./payload.json: ...`
+
+## CRITICAL: jq field access — always use quoted form
+
+When piping kt output through jq, ALWAYS use the dot quoted-key form for field access. Apply this rule regardless of whether the field code is ASCII or non-ASCII.
+
+- USE: `jq '."records"[]."名前"."value"'`
+- DO NOT USE: `jq '.records[].名前.value'` — fails with `syntax error, unexpected INVALID_CHARACTER` whenever any code is non-ASCII.
+
+Field codes carry a `value` wrapper, so end value lookups with `."value"`. Output shapes differ by command:
+
+- `records get` → returns `{"records": [ ... ]}`; start with `."records"[]`
+- `records get --page-all` → streams NDJSON (one record per line, no wrapper); apply `select(...)` / projection directly, WITHOUT a leading `."records"[]`
+- `--schema` → returns `{ method, path, operation }`; start with `."operation"`
+
+Reasons for the unconditional rule:
+
+1. Most kintone deployments use non-ASCII field codes (Japanese, Chinese, etc.). Bare form fails in the common case.
+2. A single rule eliminates the need to classify codes as ASCII / non-ASCII at command-construction time.
+3. The quoted form works for all codes, including ASCII codes like `id`, `records`, `revision`. No correctness trade-off.
 
 ## Authentication
 
@@ -311,10 +325,10 @@ Append `--schema` to any endpoint command to print the OpenAPI Spec entry for th
 
 ```bash
 # Inspect the request body shape for record add
-kt record add --schema | jq .operation.requestBody
+kt record add --schema | jq '."operation"."requestBody"'
 
 # List the query parameters for records get
-kt records get --schema | jq '.operation.parameters[] | select(.in == "query") | .name'
+kt records get --schema | jq '."operation"."parameters"[] | select(."in" == "query") | ."name"'
 ```
 
 ## Rules
@@ -337,11 +351,11 @@ kt record get --app 42 --id 1
 # Search records with field filtering
 kt records get --app 42 --query 'ステータス = "完了"' --fields "レコード番号,名前"
 
-# Export all records as NDJSON, filter with jq
-kt records get --app 42 --page-all --fields "レコード番号,名前" | jq 'select(.["名前"].value | test("田中"))'
+# Export all records as NDJSON, filter with jq (page-all streams unwrapped records)
+kt records get --app 42 --page-all --fields "レコード番号,名前" | jq 'select(."名前"."value" | test("田中"))'
 
 # Project records to {id, name} via non-ASCII field codes (quoted-key syntax)
-kt records get --app 42 --fields "レコード番号,名前" | jq '.records[] | {id: ."レコード番号".value, name: ."名前".value}'
+kt records get --app 42 --fields "レコード番号,名前" | jq '."records"[] | {id: ."レコード番号"."value", name: ."名前"."value"}'
 
 # Add a record (dry-run first)
 kt record add --dry-run --json '{"app": 42, "record": {"名前": {"value": "新規"}}}'
