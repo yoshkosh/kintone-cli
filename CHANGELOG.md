@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-06-27
+
+### Changed
+
+- `skills/kt/SKILL.md`: jq field access is now an unconditional rule —
+  always use the dot quoted-key form (`."records"[]."名前"."value"`)
+  regardless of whether the field code is ASCII or non-ASCII. The previous
+  "only non-ASCII codes need quoting" guidance required agents to classify
+  each code at command-construction time, and bare paths were still being
+  written first and retried after jq's `INVALID_CHARACTER` syntax error.
+  The quoting guidance is promoted to its own `CRITICAL: jq field access`
+  section placed before Authentication, the bracket form is dropped to
+  leave a single canonical form, and every jq example in the file (Bash
+  rules, Schema self-inspection, Examples) is converted to the dot quoted
+  form. No CLI behavior change.
+
 ## [0.7.2] - 2026-06-22
 
 ### Changed
@@ -163,7 +179,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   comment APIs, and the `bulk-request` / `plugin` / `space` / `guests` /
   `statistics` commands. See git history for per-commit detail.
 
-[Unreleased]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/yoshkosh/kintone-cli/compare/v0.6.2...v0.7.0
