@@ -6,15 +6,7 @@ import { resolveBulkSubSchema } from "./bulk-request-schemas.js";
 
 type AjvInstance = InstanceType<typeof Ajv>;
 
-export type ValidationMode = "body" | "query";
-
 type EndpointDef = {
-  parameters?: Array<{
-    in: string;
-    name: string;
-    required?: boolean;
-    schema: object;
-  }>;
   requestBody?: {
     content?: { "application/json"?: { schema?: object } };
   };
@@ -54,45 +46,22 @@ const tightenTopLevel = (schema: object): object => {
   return schema;
 };
 
-const buildQuerySchema = (parameters: EndpointDef["parameters"]): object => {
-  const queryParams = (parameters ?? []).filter((p) => p.in === "query");
-  const properties: Record<string, unknown> = {};
-  const required: string[] = [];
-  for (const p of queryParams) {
-    properties[p.name] = p.schema;
-    if (p.required) required.push(p.name);
-  }
-  return {
-    type: "object",
-    properties,
-    required,
-    additionalProperties: false,
-  };
-};
-
-export const compileForEndpoint = (
-  method: HttpMethod,
-  path: string,
-  mode: ValidationMode,
-): ValidateFunction => {
-  const cacheKey = `${mode}:${method}:${path}`;
+// NOTE: kintone/openapi-spec は DELETE を含む全書き込み系を requestBody で定義するため、
+// 実行時の検証は requestBody だけを対象にする。GET の query 検証はテストヘルパー
+// (src/__test-helpers__/spec-validator.ts) の責務で、実行時コードには持ち込まない。
+export const compileForEndpoint = (method: HttpMethod, path: string): ValidateFunction => {
+  const cacheKey = `${method}:${path}`;
   const cached = validatorCache.get(cacheKey);
   if (cached) return cached;
 
   const { operation } = getEndpointSchema(method, path);
   const def = operation as EndpointDef;
-
-  let schema: object;
-  if (mode === "query") {
-    schema = buildQuerySchema(def.parameters);
-  } else {
-    const bodySchema = def.requestBody?.content?.["application/json"]?.schema;
-    if (!bodySchema) {
-      throw new Error(`spec has no JSON requestBody for ${method} ${path}`);
-    }
-    // NOTE: addSchema 済オブジェクトを直接 tighten すると mutate になるため clone 経由にする。
-    schema = tightenTopLevel(structuredClone(bodySchema));
+  const bodySchema = def.requestBody?.content?.["application/json"]?.schema;
+  if (!bodySchema) {
+    throw new Error(`spec has no JSON requestBody for ${method} ${path}`);
   }
+  // NOTE: addSchema 済オブジェクトを直接 tighten すると mutate になるため clone 経由にする。
+  const schema = tightenTopLevel(structuredClone(bodySchema));
 
   const compiled = getAjv().compile(schema);
   validatorCache.set(cacheKey, compiled);
@@ -249,12 +218,7 @@ const validateBulkRequestSubPayloads = (data: unknown): JsonValidationErrorEntry
 const SKIP_NOTICE =
   "Notice: --skip-validation is in effect; payload not validated against OpenAPI Spec.\n";
 
-export const validateJsonOrThrow = (
-  cmd: Command,
-  opts: OptionValues,
-  body: unknown,
-  options?: { mode?: ValidationMode },
-): void => {
+export const validateJsonOrThrow = (cmd: Command, opts: OptionValues, body: unknown): void => {
   if (opts.skipValidation) {
     process.stderr.write(SKIP_NOTICE);
     return;
@@ -263,11 +227,10 @@ export const validateJsonOrThrow = (
   if (!meta) {
     throw new Error("validateJsonOrThrow: command has no endpoint meta (attachEndpoint missing?)");
   }
-  const mode = options?.mode ?? "body";
 
   // NOTE: bulkRequest だけは X2 (トップ schema 加工 + 二段目全委譲) で検証する。
   // 詳細は reports/bulk-request-validation-plan.md §設計判断 A 参照。
-  if (mode === "body" && meta.method === "POST" && meta.path === "/k/v1/bulkRequest.json") {
+  if (meta.method === "POST" && meta.path === "/k/v1/bulkRequest.json") {
     const data = structuredClone(body);
     const entries: JsonValidationErrorEntry[] = [];
     const topValidate = compileForBulkTop();
@@ -290,7 +253,7 @@ export const validateJsonOrThrow = (
     return;
   }
 
-  const validate = compileForEndpoint(meta.method, meta.path, mode);
+  const validate = compileForEndpoint(meta.method, meta.path);
   // NOTE: coerceTypes は data を mutate するため、検証は clone 上で行う。
   // 実送信 payload (引数の body) は補正せず原型のまま kintoneRequest に渡す。
   const data = structuredClone(body);

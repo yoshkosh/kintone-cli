@@ -9,6 +9,7 @@ import {
   dryRunOutput,
   requireOpts,
   parseJsonOption,
+  toInteger,
 } from "../shared.js";
 
 export const registerCommentCommands = ({ record }: { record: Command }): void => {
@@ -62,17 +63,17 @@ export const registerCommentCommands = ({ record }: { record: Command }): void =
     .action(async (opts, cmd) => {
       requireOpts(opts, ["app", "record", "comment"]);
       const global = getGlobalOptions(cmd);
-      const params = {
-        app: opts.app,
-        record: opts.record,
-        comment: opts.comment,
+      const body = {
+        app: toInteger({ name: "app", value: opts.app }),
+        record: toInteger({ name: "record", value: opts.record }),
+        comment: toInteger({ name: "comment", value: opts.comment }),
       };
 
       if (opts.dryRun) {
         dryRunOutput({
           method: "DELETE",
           path: "/k/v1/record/comment.json",
-          params,
+          body,
         });
         return;
       }
@@ -80,7 +81,7 @@ export const registerCommentCommands = ({ record }: { record: Command }): void =
       const result = await kintoneRequest({
         method: "DELETE",
         path: "/k/v1/record/comment.json",
-        params,
+        body,
         authType: global.authType,
         guestSpaceId: toGuestSpaceId(global),
       });

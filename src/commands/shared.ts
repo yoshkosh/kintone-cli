@@ -28,19 +28,31 @@ export const getGlobalOptions = (cmd: Command): GlobalOptions => {
   };
 };
 
-export const toGuestSpaceId = (global: GlobalOptions): number | undefined =>
-  global.guestSpaceId ? Number(global.guestSpaceId) : undefined;
+export const toGuestSpaceId = (global: GlobalOptions): number | undefined => {
+  if (global.guestSpaceId === undefined) return undefined;
+  // NOTE: 非数値や 0 は buildPath でパスが書き換えられず通常パスを呼んでしまうため、
+  // 黙って無視せず API 呼び出し前にエラーにする。
+  if (!/^[1-9]\d*$/.test(global.guestSpaceId)) {
+    throw new Error("--guest-space-id must be a positive integer");
+  }
+  return Number(global.guestSpaceId);
+};
+
+// NOTE: フラグ値を JSON ボディの integer に変換する。Number() は "abc" を NaN (JSON では
+// null) に、"" を 0 に黙って変換するため使わず、整数でなければ API 呼び出し前にエラーにする。
+// 負数は kintone が revision の -1 (チェックしない) などで使うため許容する。
+export const toInteger = ({ name, value }: { name: string; value: string }): number => {
+  if (!/^-?\d+$/.test(value)) {
+    throw new Error(`--${name} must be an integer`);
+  }
+  return Number(value);
+};
 
 export const writeJson = (data: unknown): void => {
   process.stdout.write(JSON.stringify(data, undefined, 2) + "\n");
 };
 
-export const dryRunOutput = (info: {
-  method: string;
-  path: string;
-  params?: unknown;
-  body?: unknown;
-}): void => {
+export const dryRunOutput = (info: { method: string; path: string; body?: unknown }): void => {
   writeJson({ dryRun: true, ...info });
 };
 
@@ -53,6 +65,21 @@ export const noGuestSpace = (
   if (opts?.schema) return;
   if (global.guestSpaceId) {
     throw new Error(`--guest-space-id is not supported for "${commandName}"`);
+  }
+};
+
+// NOTE: noGuestSpace の逆ガード。spec にゲストスペース用パスしか存在しない API 向け。
+// 指定なしで実行すると存在しない /k/v1/ 側のパスを呼ぶことになるため、API 呼び出し前に
+// CLI 側でエラーを返す。
+export const requireGuestSpace = (
+  global: GlobalOptions,
+  commandName: string,
+  opts?: { schema?: unknown },
+): void => {
+  // NOTE: --schema 指定時は副作用ゼロを保つため必須検証もバイパスする
+  if (opts?.schema) return;
+  if (!global.guestSpaceId) {
+    throw new Error(`--guest-space-id is required for "${commandName}"`);
   }
 };
 

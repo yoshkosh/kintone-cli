@@ -101,6 +101,38 @@ describe("--schema option", () => {
     expect(parsed.path).toBe("/k/v1/plugins.json");
   });
 
+  // NOTE: space guests update は spec にゲストスペース用パスしかない唯一のコマンド。
+  // 「--schema は通常パスの定義を返す」の例外として、ゲスト用パスの定義を返す
+  // (docs/decisions.md 2026-09-23)。副作用ゼロ (認証不要・--guest-space-id 不要) は維持。
+  it("space guests update: returns the guest-space path definition without --guest-space-id", async () => {
+    const code = await main(["node", "kt", "space", "guests", "update", "--schema"]);
+
+    expect(readStderr()).toBe("");
+    expect(code).toBe(0);
+    const parsed = JSON.parse(readStdout());
+    expect(parsed.method).toBe("PUT");
+    expect(parsed.path).toBe("/k/guest/{guestSpaceId}/v1/space/guests.json");
+    expect(parsed.operation).toHaveProperty("requestBody");
+  });
+
+  it("space guests update: returns the same guest-space path with --guest-space-id", async () => {
+    const code = await main([
+      "node",
+      "kt",
+      "--guest-space-id",
+      "5",
+      "space",
+      "guests",
+      "update",
+      "--schema",
+    ]);
+
+    expect(readStderr()).toBe("");
+    expect(code).toBe(0);
+    const parsed = JSON.parse(readStdout());
+    expect(parsed.path).toBe("/k/guest/{guestSpaceId}/v1/space/guests.json");
+  });
+
   it("when combined with --dry-run, emits only the schema (no dry-run output)", async () => {
     const code = await main([
       "node",

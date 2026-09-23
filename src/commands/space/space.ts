@@ -10,6 +10,7 @@ import {
   noGuestSpace,
   requireOpts,
   parseJsonOption,
+  toInteger,
 } from "../shared.js";
 
 export const registerSpaceCommands = (program: Command): { space: Command; spaces: Command } => {
@@ -71,17 +72,17 @@ export const registerSpaceCommands = (program: Command): { space: Command; space
     .action(async (opts, cmd) => {
       requireOpts(opts, ["id"]);
       const global = getGlobalOptions(cmd);
-      const params = { id: opts.id };
+      const body = { id: toInteger({ name: "id", value: opts.id }) };
 
       if (opts.dryRun) {
-        dryRunOutput({ method: "DELETE", path: "/k/v1/space.json", params });
+        dryRunOutput({ method: "DELETE", path: "/k/v1/space.json", body });
         return;
       }
 
       const result = await kintoneRequest({
         method: "DELETE",
         path: "/k/v1/space.json",
-        params,
+        body,
         authType: global.authType,
         guestSpaceId: toGuestSpaceId(global),
       });

@@ -8,22 +8,23 @@ specific bundled components identified.
 
 ---
 
-## kintone REST API Specification
+## Kintone REST API OpenAPI Specification
 
 - **Component**: `dist/spec.json`
-- **Origin**: [kintone/rest-api-spec](https://github.com/kintone/rest-api-spec)
-- **Upstream version**: `20250423000000` (`info.version` of the bundled OpenAPI document)
-- **Vendored source**: `third_party/rest-api-spec/openapi.yaml`
+- **Origin**: [kintone/openapi-spec](https://github.com/kintone/openapi-spec)
+- **Upstream tag**: `v1` (commit `1585b411ace680092fa7667acf53723ecb7bd81e`)
+- **Upstream version**: `2026.8.31` (`info.version` of the bundled OpenAPI document)
+- **Vendored source**: `third_party/openapi-spec/openapi.yaml`
   - Converted to JSON at build time by `scripts/build-spec.mjs` and emitted as `dist/spec.json`.
-- **License**: Apache License, Version 2.0 (SPDX: `Apache-2.0`)
-- **License text**: <https://www.apache.org/licenses/LICENSE-2.0>
-- **Upstream LICENSE file**: <https://github.com/kintone/rest-api-spec/blob/main/LICENSE>
+- **Copyright**: Copyright (c) 2026 Cybozu, Inc.
+- **License**: MIT No Attribution (SPDX: `MIT-0`)
+- **License text**: <https://opensource.org/license/mit-0>
+- **Upstream LICENSE file**: <https://github.com/kintone/openapi-spec/blob/v1/LICENSE>
 
 The OpenAPI document is bundled unmodified in content; only its serialization
 format is transformed (YAML to JSON) for runtime consumption. No editorial
 changes are applied to the upstream specification.
 
-Per Section 4 of the Apache License 2.0, the upstream copyright, license
-reference, and origin URL are reproduced above. Recipients of this package
-who redistribute `dist/spec.json` must continue to satisfy the conditions of
-the Apache License 2.0 with respect to that file.
+MIT-0 does not require attribution. The origin, tag, and version are recorded
+above so that the bundled document can be traced back to its upstream source
+and refreshed from the same tag series.

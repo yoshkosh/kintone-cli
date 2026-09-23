@@ -106,19 +106,32 @@ describe("validateJsonOrThrow coerce boundary", () => {
   });
 });
 
-describe("validateJsonOrThrow (query mode for DELETE)", () => {
-  it("passes JSON.parse-shaped { app, ids: [...] } without un-expansion", () => {
+describe("validateJsonOrThrow (DELETE requestBody)", () => {
+  // NOTE: kintone/openapi-spec は DELETE のパラメータを requestBody で定義するため、
+  // records delete の --json も他の書き込み系と同じ body モードで検証する。
+  it("passes { app, ids: [...] } for DELETE /k/v1/records.json", () => {
     const cmd = makeCmd("DELETE", "/k/v1/records.json");
-    expect(() =>
-      validateJsonOrThrow(cmd, {}, { app: 1, ids: [1, 2] }, { mode: "query" }),
-    ).not.toThrow();
+    expect(() => validateJsonOrThrow(cmd, {}, { app: 1, ids: [1, 2] })).not.toThrow();
   });
 
   it('rejects "ids": "10,11" (string instead of array)', () => {
     const cmd = makeCmd("DELETE", "/k/v1/records.json");
-    expect(() => validateJsonOrThrow(cmd, {}, { app: 1, ids: "10,11" }, { mode: "query" })).toThrow(
+    expect(() => validateJsonOrThrow(cmd, {}, { app: 1, ids: "10,11" })).toThrow(
       JsonValidationError,
     );
+  });
+
+  it("flags an unknown top-level key (idz) with additionalProperties", () => {
+    const cmd = makeCmd("DELETE", "/k/v1/records.json");
+    let thrown: JsonValidationError | undefined;
+    try {
+      validateJsonOrThrow(cmd, {}, { app: 1, ids: [1], idz: [2] });
+    } catch (e) {
+      thrown = e as JsonValidationError;
+    }
+    expect(thrown).toBeInstanceOf(JsonValidationError);
+    const extra = thrown?.entries.find((e) => e.keyword === "additionalProperties");
+    expect(extra?.params.additionalProperty).toBe("idz");
   });
 });
 
@@ -150,15 +163,21 @@ describe("validateJsonOrThrow no endpoint meta", () => {
 
 describe("compileForEndpoint cache", () => {
   it("returns the same compiled validator on repeat calls", () => {
-    const a = compileForEndpoint("POST", "/k/v1/record.json", "body");
-    const b = compileForEndpoint("POST", "/k/v1/record.json", "body");
+    const a = compileForEndpoint("POST", "/k/v1/record.json");
+    const b = compileForEndpoint("POST", "/k/v1/record.json");
     expect(a).toBe(b);
   });
 
-  it("uses separate compilation per (mode, method, path)", () => {
-    const body = compileForEndpoint("POST", "/k/v1/record.json", "body");
-    const query = compileForEndpoint("DELETE", "/k/v1/records.json", "query");
-    expect(body).not.toBe(query);
+  it("uses separate compilation per (method, path)", () => {
+    const post = compileForEndpoint("POST", "/k/v1/record.json");
+    const del = compileForEndpoint("DELETE", "/k/v1/records.json");
+    expect(post).not.toBe(del);
+  });
+
+  it("throws a descriptive error for an endpoint without a JSON requestBody", () => {
+    expect(() => compileForEndpoint("GET", "/k/v1/record.json")).toThrow(
+      /no JSON requestBody for GET \/k\/v1\/record\.json/,
+    );
   });
 });
 

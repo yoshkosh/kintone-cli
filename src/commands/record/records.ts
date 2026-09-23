@@ -9,6 +9,7 @@ import {
   dryRunOutput,
   requireOpts,
   parseJsonOption,
+  toInteger,
 } from "../shared.js";
 
 type CursorOptions = {
@@ -58,7 +59,7 @@ const fetchAllWithCursor = async (opts: CursorOptions): Promise<void> => {
     await kintoneRequest({
       method: "DELETE",
       path: "/k/v1/records/cursor.json",
-      params: { id: cursorId },
+      body: { id: cursorId },
       authType: opts.authType,
       guestSpaceId: opts.guestSpaceId,
     }).catch(() => {});
@@ -84,7 +85,7 @@ export const registerRecordsCommands = (program: Command): { records: Command } 
 
       if (opts.pageAll) {
         await fetchAllWithCursor({
-          app: Number(opts.app),
+          app: toInteger({ name: "app", value: opts.app }),
           query: opts.query,
           fields: opts.fields?.split(","),
           authType: global.authType,
@@ -174,24 +175,20 @@ export const registerRecordsCommands = (program: Command): { records: Command } 
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
-      const parsed = (await parseJsonOption(opts.json)) as Record<string, unknown>;
-      // NOTE: spec 上は parameters 経由 (in: query) のため query schema で検証。
-      // CLI は --json を params に展開する設計。
-      validateJsonOrThrow(cmd, opts, parsed, { mode: "query" });
+      const body = await parseJsonOption(opts.json);
+      // NOTE: kintone/openapi-spec は DELETE のパラメータを requestBody で定義する。
+      // 公式ドキュメントの例も JSON ボディのため、query string には展開しない。
+      validateJsonOrThrow(cmd, opts, body);
 
       if (opts.dryRun) {
-        dryRunOutput({
-          method: "DELETE",
-          path: "/k/v1/records.json",
-          params: parsed,
-        });
+        dryRunOutput({ method: "DELETE", path: "/k/v1/records.json", body });
         return;
       }
 
       const result = await kintoneRequest({
         method: "DELETE",
         path: "/k/v1/records.json",
-        params: parsed,
+        body,
         authType: global.authType,
         guestSpaceId: toGuestSpaceId(global),
       });
