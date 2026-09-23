@@ -82,6 +82,8 @@ kt record get --app 1 --guest-space-id 5
 
 システムレベルの操作（`plugin`, `plugins`, `bulk-request`, `guests`, `statistics`）は guest space 非対応。`--guest-space-id` 付きで呼び出された場合はCLI側で即座にエラーを返す。
 
+逆に `space guests update` はゲストスペース専用の API で、OpenAPI Spec にも `/k/guest/{guestSpaceId}/v1/space/guests.json` しか定義されていない。`--guest-space-id` を必須とし、指定がなければ CLI 側で即座にエラーを返す。
+
 ### 通知系APIのコマンド名
 
 パス中のスラッシュ（`notifications/general` 等）はハイフンで結合してフラット化する。
@@ -102,7 +104,7 @@ kt record add --json '{"app": 1, "records": [{"名前": {"value": "田中"}}]}'
 kt record get --app 1 --id 10
 ```
 
-`--json` で渡された payload は、API 呼び出し前に OpenAPI Spec の requestBody（DELETE 系は parameters）で検証される。必須欠落・型不一致・余分なトップレベルプロパティを事前に検出する。spec 側不整合などで誤検出された場合は `--skip-validation` で例外的にスキップできる（最終手段）。
+`--json` で渡された payload は、API 呼び出し前に OpenAPI Spec の requestBody で検証される。DELETE 系のコマンドもパラメータを JSON ボディで送信するため、同じ requestBody の定義で検証する。必須欠落・型不一致・余分なトップレベルプロパティを事前に検出する。spec 側不整合などで誤検出された場合は `--skip-validation` で例外的にスキップできる（最終手段）。
 
 `bulk-request add --json` は二段検証で、`requests[i].payload` を `(method, api)` から決まる sub-schema で個別に検証する。typo（`{rcord:{}}`）や形違い payload の混入（`method:"DELETE"` に records add 用 payload）も検出する。`(method, api)` がサポート対象 8 種（record POST/PUT、records POST/PUT/DELETE、record/records status PUT、record assignees PUT）に該当しない場合は `bulkRequestUnknownSubapi` として弾き、`method` は upper-case 完全一致のみ受け付ける。`requests[i]` の余分プロパティ（`{method, api, payload, comment}` の `comment` 等）も `additionalProperties` で弾く。
 
@@ -205,7 +207,9 @@ kt records get --app 1 --page-all > records.jsonl
 
 ## OpenAPI Specの活用
 
-公式OpenAPI Spec: https://github.com/kintone/rest-api-spec
+公式OpenAPI Spec: https://github.com/kintone/openapi-spec
+
+同梱する仕様はリリースタグ（現在は `v1`）に固定し、`third_party/openapi-spec/openapi.yaml` に置く。タグ名と `info.version` は `THIRD_PARTY_NOTICES.md` に記録する。
 
 コマンドの実装は**静的**（エンドポイントごとにコードを記述）とする。OpenAPI Specは以下の用途でランタイムに同梱・活用する:
 

@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CommanderError } from "commander";
-import { parseJsonOption, requireOpts, toGuestSpaceId } from "./shared.js";
+import { parseJsonOption, requireOpts, toGuestSpaceId, toInteger } from "./shared.js";
 
 describe("toGuestSpaceId", () => {
   it("returns undefined when guestSpaceId is not present", () => {
@@ -14,6 +14,36 @@ describe("toGuestSpaceId", () => {
     const result = toGuestSpaceId({ guestSpaceId: "5" });
     expect(result).toBe(5);
     expect(typeof result).toBe("number");
+  });
+
+  // NOTE: 非数値や 0 は buildPath でパスが書き換えられず通常パスを呼んでしまうため、
+  // 黙って無視せず fail fast にする。
+  it("throws for a non-numeric guestSpaceId", () => {
+    expect(() => toGuestSpaceId({ guestSpaceId: "abc" })).toThrow(
+      /--guest-space-id must be a positive integer/,
+    );
+  });
+
+  it("throws for 0", () => {
+    expect(() => toGuestSpaceId({ guestSpaceId: "0" })).toThrow(/positive integer/);
+  });
+});
+
+describe("toInteger", () => {
+  it("converts a decimal string to a number", () => {
+    expect(toInteger({ name: "app", value: "12" })).toBe(12);
+  });
+
+  it("accepts a negative value (kintone uses -1 for 'do not check revision')", () => {
+    expect(toInteger({ name: "revision", value: "-1" })).toBe(-1);
+  });
+
+  it("throws a descriptive error for a non-numeric value instead of yielding NaN", () => {
+    expect(() => toInteger({ name: "app", value: "abc" })).toThrow(/--app must be an integer/);
+  });
+
+  it("throws for an empty string instead of yielding 0", () => {
+    expect(() => toInteger({ name: "id", value: "" })).toThrow(/--id must be an integer/);
   });
 });
 

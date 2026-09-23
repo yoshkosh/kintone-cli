@@ -1,13 +1,16 @@
-# Upstream kintone OpenAPI Spec (third_party/rest-api-spec/openapi.yaml)
-# vendored at version 20250423000000. gitleaks false positives on legitimate
-# documentation text ("password:" schema field, "guest space users" prose).
-# Not our content to edit; allowlist specific fingerprints instead of skipping
-# the whole file, so new findings in future spec updates still surface.
-third_party/rest-api-spec/openapi.yaml:yaml-secrets:23287
-third_party/rest-api-spec/openapi.yaml:generic-username:13437
-third_party/rest-api-spec/openapi.yaml:generic-username:22129
-third_party/rest-api-spec/openapi.yaml:generic-username:23460
-third_party/rest-api-spec/openapi.yaml:generic-username:39908
-third_party/rest-api-spec/openapi.yaml:generic-username:40524
-third_party/rest-api-spec/openapi.yaml:generic-username:41716
-third_party/rest-api-spec/openapi.yaml:generic-username:41860
+# Upstream kintone OpenAPI Spec (third_party/openapi-spec/openapi.yaml)
+# vendored from tag v1 (info.version 2026.8.31). gitleaks false positives on
+# legitimate documentation content: sample fileKey values in examples, the
+# upstream contact email, prose about "guest/" login names, and a schema
+# property named "password". Not our content to edit; allowlist specific
+# fingerprints instead of skipping the whole file, so new findings in future
+# spec updates still surface. Fingerprints are per rule and line number, so
+# regenerate them (with the same rule set as the commit hook) on every refresh.
+third_party/openapi-spec/openapi.yaml:generic-api-key:16587
+third_party/openapi-spec/openapi.yaml:generic-api-key:16591
+third_party/openapi-spec/openapi.yaml:email:22
+third_party/openapi-spec/openapi.yaml:generic-username:12201
+third_party/openapi-spec/openapi.yaml:generic-username:17974
+third_party/openapi-spec/openapi.yaml:generic-username:33253
+third_party/openapi-spec/openapi.yaml:generic-username:33397
+third_party/openapi-spec/openapi.yaml:yaml-secrets:17659

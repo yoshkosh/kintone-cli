@@ -66,8 +66,8 @@ const mockCursorSequence = (config: {
     .intercept({
       path: "/k/v1/records/cursor.json",
       method: "DELETE",
-      query: { id: cursorId },
-      headers: authHeader,
+      body: JSON.stringify({ id: cursorId }),
+      headers: { ...authHeader, "Content-Type": "application/json" },
     })
     .reply(200, {});
 
@@ -321,23 +321,19 @@ describe("cli integration", () => {
   });
 
   describe("records delete", () => {
-    // DELETE /k/v1/records.json uses query-string encoded array params
-    // (not a body). Exercises appendQueryParams' array encoding.
+    // NOTE: kintone/openapi-spec は DELETE のパラメータを requestBody で定義する。
+    // CLI も --json を query string に展開せず、そのまま JSON ボディで送る。
     const DELETE_JSON = '{"app":1,"ids":[1,2]}';
 
-    it("DELETE: sends params as query string with array encoding", async () => {
+    it("DELETE: sends --json as JSON body with application/json", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
       const pool = createValidatedPool(mockAgent, BASE_URL);
       pool
         .intercept({
           path: "/k/v1/records.json",
           method: "DELETE",
-          query: {
-            app: "1",
-            "ids[0]": "1",
-            "ids[1]": "2",
-          },
-          headers: { "X-Cybozu-API-Token": "test-token" },
+          body: DELETE_JSON,
+          headers: { "X-Cybozu-API-Token": "test-token", "Content-Type": "application/json" },
         })
         .reply(200, {});
 
@@ -350,7 +346,7 @@ describe("cli integration", () => {
       expect(readStdout()).toBe("{}\n");
     });
 
-    it("--dry-run: no HTTP fire, outputs dry-run JSON with params", async () => {
+    it("--dry-run: no HTTP fire, outputs dry-run JSON with body (no params key)", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
 
       const code = await main([
@@ -371,12 +367,261 @@ describe("cli integration", () => {
             dryRun: true,
             method: "DELETE",
             path: "/k/v1/records.json",
-            params: JSON.parse(DELETE_JSON),
+            body: JSON.parse(DELETE_JSON),
           },
           undefined,
           2,
         ) + "\n";
       expect(readStdout()).toBe(expected);
+    });
+  });
+
+  describe("DELETE commands built from flags", () => {
+    // NOTE: kintone/openapi-spec は DELETE のパラメータを requestBody で定義する。
+    // フラグから組み立てた値も query string ではなく JSON ボディで送る。整数型の
+    // パラメータは spec の型に合わせて number にする。
+    const cases = [
+      {
+        name: "record comment delete",
+        argv: ["record", "comment", "delete", "--app", "1", "--record", "2", "--comment", "3"],
+        path: "/k/v1/record/comment.json",
+        body: { app: 1, record: 2, comment: 3 },
+      },
+      {
+        name: "preview app form-fields delete",
+        argv: [
+          "preview",
+          "app",
+          "form-fields",
+          "delete",
+          "--app",
+          "1",
+          "--fields",
+          "a,b",
+          "--revision",
+          "3",
+        ],
+        path: "/k/v1/preview/app/form/fields.json",
+        body: { app: 1, fields: ["a", "b"], revision: 3 },
+      },
+      {
+        name: "space delete",
+        argv: ["space", "delete", "--id", "5"],
+        path: "/k/v1/space.json",
+        body: { id: 5 },
+      },
+      {
+        name: "plugin delete",
+        argv: ["plugin", "delete", "--id", "abcdef"],
+        path: "/k/v1/plugin.json",
+        body: { id: "abcdef" },
+      },
+      {
+        name: "guests delete",
+        argv: ["guests", "delete", "--guests", "a@example.com,b@example.com"], // gitleaks:allow
+        path: "/k/v1/guests.json",
+        body: { guests: ["a@example.com", "b@example.com"] }, // gitleaks:allow
+      },
+    ];
+
+    it.each(cases)("$name: sends parameters as JSON body", async ({ argv, path, body }) => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = createValidatedPool(mockAgent, BASE_URL);
+      pool
+        .intercept({
+          path,
+          method: "DELETE",
+          body: JSON.stringify(body),
+          headers: { "X-Cybozu-API-Token": "test-token", "Content-Type": "application/json" },
+        })
+        .reply(200, {});
+
+      const code = await main(["node", "kt", ...argv]);
+
+      const stderr = readStderr();
+      expect(stderr, `stderr: ${stderr}`).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStdout()).toBe("{}\n");
+    });
+
+    it("non-numeric integer flag → exit 1 with a named error, no dry-run output", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+
+      const code = await main([
+        "node",
+        "kt",
+        "record",
+        "comment",
+        "delete",
+        "--app",
+        "abc",
+        "--record",
+        "2",
+        "--comment",
+        "3",
+        "--dry-run",
+      ]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      expect(readStderr()).toBe("Error: --app must be an integer\n");
+    });
+
+    it("preview app form-fields delete --revision -1 is sent as the integer -1", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+
+      const code = await main([
+        "node",
+        "kt",
+        "preview",
+        "app",
+        "form-fields",
+        "delete",
+        "--app",
+        "1",
+        "--fields",
+        "a",
+        "--revision",
+        "-1",
+        "--dry-run",
+      ]);
+
+      expect(readStderr()).toBe("");
+      expect(code).toBe(0);
+      const parsed = JSON.parse(readStdout());
+      expect(parsed.body).toEqual({ app: 1, fields: ["a"], revision: -1 });
+    });
+
+    it.each(cases)(
+      "$name --dry-run: outputs body key, not params",
+      async ({ argv, path, body }) => {
+        vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+
+        const code = await main(["node", "kt", ...argv, "--dry-run"]);
+
+        expect(readStderr()).toBe("");
+        expect(code).toBe(0);
+        const expected =
+          JSON.stringify({ dryRun: true, method: "DELETE", path, body }, undefined, 2) + "\n";
+        expect(readStdout()).toBe(expected);
+      },
+    );
+  });
+
+  describe("space guests update (guest-space only API)", () => {
+    // NOTE: kintone/openapi-spec には /k/v1/space/guests.json がなく、ゲストスペース用の
+    // パスだけが定義されている。--guest-space-id なしでは存在しないパスを呼ぶことになる
+    // ため、API 呼び出し前に CLI 側でエラーを返す。
+    const PAYLOAD = '{"id":5,"guests":["a@example.com"]}'; // gitleaks:allow
+
+    it("without --guest-space-id → exit 1 'required' message, no HTTP", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      // No interceptor registered. The guard throws before any fetch call.
+
+      const code = await main(["node", "kt", "space", "guests", "update", "--json", PAYLOAD]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      expect(readStderr()).toContain("--guest-space-id is required");
+      expect(readStderr()).toContain("space guests update");
+    });
+
+    it("--dry-run without --guest-space-id → exit 1 as well (guard precedes dry-run)", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+
+      const code = await main([
+        "node",
+        "kt",
+        "space",
+        "guests",
+        "update",
+        "--json",
+        PAYLOAD,
+        "--dry-run",
+      ]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      expect(readStderr()).toContain("--guest-space-id is required");
+    });
+
+    it("non-numeric --guest-space-id → exit 1 before any HTTP (guard cannot be bypassed)", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+
+      const code = await main([
+        "node",
+        "kt",
+        "--guest-space-id",
+        "abc",
+        "space",
+        "guests",
+        "update",
+        "--json",
+        PAYLOAD,
+      ]);
+
+      expect(code).toBe(1);
+      expect(readStdout()).toBe("");
+      expect(readStderr()).toContain("--guest-space-id must be a positive integer");
+    });
+
+    it("with --guest-space-id → PUT /k/guest/<id>/v1/space/guests.json with JSON body", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+      const pool = createValidatedPool(mockAgent, BASE_URL);
+      pool
+        .intercept({
+          path: "/k/guest/5/v1/space/guests.json",
+          method: "PUT",
+          body: PAYLOAD,
+          headers: { "X-Cybozu-API-Token": "test-token", "Content-Type": "application/json" },
+        })
+        .reply(200, {});
+
+      const code = await main([
+        "node",
+        "kt",
+        "--guest-space-id",
+        "5",
+        "space",
+        "guests",
+        "update",
+        "--json",
+        PAYLOAD,
+      ]);
+
+      const stderr = readStderr();
+      expect(stderr, `stderr: ${stderr}`).toBe("");
+      expect(code).toBe(0);
+      mockAgent.assertNoPendingInterceptors();
+      expect(readStdout()).toBe("{}\n");
+    });
+
+    it("invalid payload is validated against the guest-space path definition", async () => {
+      vi.stubEnv("KINTONE_API_TOKEN", "test-token");
+
+      const code = await main([
+        "node",
+        "kt",
+        "--guest-space-id",
+        "5",
+        "space",
+        "guests",
+        "update",
+        "--json",
+        '{"id":5}',
+      ]);
+
+      expect(code).toBe(1);
+      const parsed = JSON.parse(readStderr().trim());
+      expect(parsed.error).toBe("json_validation_failed");
+      expect(parsed.path).toBe("/k/guest/{guestSpaceId}/v1/space/guests.json");
+      expect(
+        parsed.errors.some(
+          (e: { keyword: string; params: { missingProperty?: string } }) =>
+            e.keyword === "required" && e.params.missingProperty === "guests",
+        ),
+      ).toBe(true);
     });
   });
 
@@ -770,7 +1015,7 @@ describe("cli integration", () => {
       expect(readStderr()).toBe("");
     });
 
-    it("records delete: invalid query payload → exit 1 with json_validation_failed", async () => {
+    it("records delete: invalid body payload (ids as string) → exit 1 with json_validation_failed", async () => {
       vi.stubEnv("KINTONE_API_TOKEN", "test-token");
 
       const code = await main([

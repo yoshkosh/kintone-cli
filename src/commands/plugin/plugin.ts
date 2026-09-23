@@ -80,17 +80,17 @@ export const registerPluginCommands = (program: Command): void => {
       requireOpts(opts, ["id"]);
       const global = getGlobalOptions(cmd);
       noGuestSpace(global, "plugin delete", opts);
-      const params = { id: opts.id };
+      const body = { id: opts.id };
 
       if (opts.dryRun) {
-        dryRunOutput({ method: "DELETE", path: "/k/v1/plugin.json", params });
+        dryRunOutput({ method: "DELETE", path: "/k/v1/plugin.json", body });
         return;
       }
 
       const result = await kintoneRequest({
         method: "DELETE",
         path: "/k/v1/plugin.json",
-        params,
+        body,
         authType: global.authType,
       });
       writeJson(result);

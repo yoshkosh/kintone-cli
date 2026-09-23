@@ -9,6 +9,7 @@ import {
   dryRunOutput,
   requireOpts,
   parseJsonOption,
+  toInteger,
 } from "../shared.js";
 
 export const registerAppFormFieldsCommands = ({
@@ -161,17 +162,17 @@ export const registerAppFormFieldsCommands = ({
     .action(async (opts, cmd) => {
       requireOpts(opts, ["app", "fields"]);
       const global = getGlobalOptions(cmd);
-      const params: Record<string, unknown> = {
-        app: opts.app,
+      const body: Record<string, unknown> = {
+        app: toInteger({ name: "app", value: opts.app }),
         fields: opts.fields.split(","),
       };
-      if (opts.revision) params.revision = opts.revision;
+      if (opts.revision) body.revision = toInteger({ name: "revision", value: opts.revision });
 
       if (opts.dryRun) {
         dryRunOutput({
           method: "DELETE",
           path: "/k/v1/preview/app/form/fields.json",
-          params,
+          body,
         });
         return;
       }
@@ -179,7 +180,7 @@ export const registerAppFormFieldsCommands = ({
       const result = await kintoneRequest({
         method: "DELETE",
         path: "/k/v1/preview/app/form/fields.json",
-        params,
+        body,
         authType: global.authType,
         guestSpaceId: toGuestSpaceId(global),
       });

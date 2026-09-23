@@ -8,13 +8,14 @@ import {
   writeJson,
   dryRunOutput,
   noGuestSpace,
+  requireGuestSpace,
   requireOpts,
   parseJsonOption,
 } from "../shared.js";
 
-// NOTE: `space guests update` は通常スペースに加えてゲストスペースも対象（toGuestSpaceId 経由）。
+// NOTE: `space guests update` はゲストスペース専用 API（requireGuestSpace で --guest-space-id 必須）。
 // `guests add` / `guests delete` はシステム管理 API のためゲストスペース指定不可（noGuestSpace）。
-// ファイル内で許可／拒否を取り違えないよう注意。
+// ファイル内で必須／拒否を取り違えないよう注意。
 export const registerGuestsCommands = ({
   program,
   space,
@@ -25,15 +26,20 @@ export const registerGuestsCommands = ({
   // --- space guests ---
   const guests = space.command("guests").description("Space guest operations");
 
-  // PUT /k/v1/space/guests.json
+  // PUT /k/guest/{guestSpaceId}/v1/space/guests.json
+  // NOTE: kintone/openapi-spec には通常スペース用の /k/v1/space/guests.json がなく、公式
+  // ドキュメントもゲストスペース専用 API としている。--json の検証と --schema はゲスト用
+  // パスの定義を参照する（docs/decisions.md 2026-09-23）。送信時のパスは他コマンドと同じく
+  // /k/v1/ 形式で渡し、kintoneRequest が --guest-space-id で書き換える。
   const guestsUpdate = guests
     .command("update")
-    .description("Update space guests")
+    .description("Update space guests (guest space only; --guest-space-id required)")
     .option("--json <payload>", "Raw JSON payload")
     .option("--dry-run", "Validate without executing")
     .action(async (opts, cmd) => {
       requireOpts(opts, ["json"]);
       const global = getGlobalOptions(cmd);
+      requireGuestSpace(global, "space guests update", opts);
       const bodyData = await parseJsonOption(opts.json);
       validateJsonOrThrow(cmd, opts, bodyData);
 
@@ -57,7 +63,7 @@ export const registerGuestsCommands = ({
     });
   attachEndpoint(guestsUpdate, {
     method: "PUT",
-    path: "/k/v1/space/guests.json",
+    path: "/k/guest/{guestSpaceId}/v1/space/guests.json",
   });
 
   // --- guests (top-level) ---
@@ -105,13 +111,13 @@ export const registerGuestsCommands = ({
       requireOpts(opts, ["guests"]);
       const global = getGlobalOptions(cmd);
       noGuestSpace(global, "guests delete", opts);
-      const params = { guests: opts.guests.split(",") };
+      const body = { guests: opts.guests.split(",") };
 
       if (opts.dryRun) {
         dryRunOutput({
           method: "DELETE",
           path: "/k/v1/guests.json",
-          params,
+          body,
         });
         return;
       }
@@ -119,7 +125,7 @@ export const registerGuestsCommands = ({
       const result = await kintoneRequest({
         method: "DELETE",
         path: "/k/v1/guests.json",
-        params,
+        body,
         authType: global.authType,
       });
       writeJson(result);
