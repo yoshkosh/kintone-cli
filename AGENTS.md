@@ -13,7 +13,7 @@ in the npm tarball and is the user-facing surface.
 - A schema-validated CLI facade over the kintone REST API, designed for AI
   agents and humans. The CLI binary is `kt` (also `kintone-cli`).
 - TypeScript, ESM only, Node.js ≥ 22 (uses built-in `fetch`).
-- The OpenAPI Specification (`third_party/rest-api-spec/openapi.yaml`) is
+- The OpenAPI Specification (`third_party/openapi-spec/openapi.yaml`) is
   vendored, converted to `dist/spec.json` at build time, and used at runtime
   for `--schema` introspection and `--json` payload validation.
 
@@ -33,10 +33,25 @@ node dist/index.js --help # run the locally built CLI
 ## Source of truth
 
 - API shape — request/response, parameters, schemas — comes from the **kintone
-  official OpenAPI Specification** (<https://github.com/kintone/rest-api-spec>).
-  Do **not** infer behavior from third-party docs (Context7, blog posts) when
-  the spec has an answer. The vendored copy in `third_party/rest-api-spec/` is
-  the working reference; refresh it via `gh api` if you need the latest.
+  official OpenAPI Specification** (<https://github.com/kintone/openapi-spec>,
+  MIT-0). Do **not** infer behavior from third-party docs (Context7, blog
+  posts) when the spec has an answer. The vendored copy in
+  `third_party/openapi-spec/` is the working reference and is pinned to a
+  release tag (currently `v1`; see `THIRD_PARTY_NOTICES.md`). Upstream
+  regenerates `main` daily and cuts a new tag when the content changes, so
+  refresh from a tag, not from `main`:
+
+  ```bash
+  gh api "repos/kintone/openapi-spec/contents/openapi.yaml?ref=v1" \
+    -H "Accept: application/vnd.github.raw" > third_party/openapi-spec/openapi.yaml
+  ```
+
+  After refreshing, update the tag / `info.version` in
+  `THIRD_PARTY_NOTICES.md`, re-run gitleaks with the same rule set your
+  commit hook uses (the fingerprints in `.gitleaksignore` are per rule and
+  line number, so both the rule set and the line numbers must match), and
+  run `pnpm test`.
+
 - Design decisions are recorded in [`docs/decisions.md`](docs/decisions.md)
   (Japanese). Open spec/operational details live in
   [`docs/spec.md`](docs/spec.md) and [`docs/ideas.md`](docs/ideas.md).

@@ -4,7 +4,7 @@ description: "kintone REST API CLI. Use when operating on kintone apps, records,
 compatibility: Requires Node.js.
 metadata:
   author: yoshkosh
-  version: "0.7.3"
+  version: "0.8.0"
 allowed-tools: Bash(npx:*) Bash(kt:*)
 ---
 
@@ -84,10 +84,10 @@ If multiple auth methods are detected, a warning is shown. Use `--auth-type` to 
 
 ## Global Flags
 
-| Flag                    | Description                                           |
-| ----------------------- | ----------------------------------------------------- |
-| `--auth-type <type>`    | Authentication type: `api-token`, `password`, `oauth` |
-| `--guest-space-id <id>` | Guest space ID (changes API path prefix)              |
+| Flag                    | Description                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `--auth-type <type>`    | Authentication type: `api-token`, `password`, `oauth`                        |
+| `--guest-space-id <id>` | Guest space ID (changes API path prefix). Required for `space guests update` |
 
 ## Commands
 
@@ -204,19 +204,19 @@ If multiple auth methods are detected, a warning is shown. Use `--auth-type` to 
 
 ### Spaces
 
-| Command                                          | Description                |
-| ------------------------------------------------ | -------------------------- |
-| `kt space get --id <id>`                         | Get space info             |
-| `kt space update --json '<payload>'`             | Update space settings      |
-| `kt space delete --id <id>`                      | Delete a space             |
-| `kt space body update --json '<payload>'`        | Update space body          |
-| `kt space members get --id <id>`                 | Get space members          |
-| `kt space members update --json '<payload>'`     | Update space members       |
-| `kt space guests update --json '<payload>'`      | Update space guests        |
-| `kt space thread add --json '<payload>'`         | Create a thread            |
-| `kt space thread update --json '<payload>'`      | Update a thread            |
-| `kt space thread comment add --json '<payload>'` | Add a thread comment       |
-| `kt template space add --json '<payload>'`       | Create space from template |
+| Command                                                           | Description                            |
+| ----------------------------------------------------------------- | -------------------------------------- |
+| `kt space get --id <id>`                                          | Get space info                         |
+| `kt space update --json '<payload>'`                              | Update space settings                  |
+| `kt space delete --id <id>`                                       | Delete a space                         |
+| `kt space body update --json '<payload>'`                         | Update space body                      |
+| `kt space members get --id <id>`                                  | Get space members                      |
+| `kt space members update --json '<payload>'`                      | Update space members                   |
+| `kt space guests update --guest-space-id <id> --json '<payload>'` | Update space guests (guest space only) |
+| `kt space thread add --json '<payload>'`                          | Create a thread                        |
+| `kt space thread update --json '<payload>'`                       | Update a thread                        |
+| `kt space thread comment add --json '<payload>'`                  | Add a thread comment                   |
+| `kt template space add --json '<payload>'`                        | Create space from template             |
 
 ### Guest Users
 
@@ -320,7 +320,7 @@ Append `--schema` to any endpoint command to print the OpenAPI Spec entry for th
 - No API call is made — works without a valid `KINTONE_BASE_URL` or auth.
 - Required options can be omitted (`kt record add --schema` works without `--json`).
 - `noGuestSpace` guards are bypassed (`kt plugins get --schema --guest-space-id 5` works).
-- `--guest-space-id` is ignored — the non-guest path is returned, since guest paths share the same operation in the spec.
+- `--guest-space-id` is ignored — the non-guest path is returned, since guest paths share the same operation in the spec. Exception: `space guests update` exists only under the guest-space path, so its schema is `PUT /k/guest/{guestSpaceId}/v1/space/guests.json`.
 - If combined with `--dry-run`, only the schema is printed.
 
 ```bash
@@ -341,6 +341,8 @@ kt records get --schema | jq '."operation"."parameters"[] | select(."in" == "que
 - `--json` accepts the kintone API request body as-is — refer to [kintone REST API docs](https://kintone.dev/en/docs/kintone/rest-api/)
 - Command structure follows kintone API paths for predictability
 - System-level commands (`plugin`, `plugins`, `bulk-request`, `guests`, statistics) do not support `--guest-space-id`
+- `space guests update` requires `--guest-space-id` (the API exists only for guest spaces)
+- DELETE commands send their parameters as a JSON request body; `--dry-run` shows them under `body`
 
 ## Examples
 

@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-23
+
+### Changed
+
+- The bundled OpenAPI Specification now comes from
+  [kintone/openapi-spec](https://github.com/kintone/openapi-spec) (tag `v1`,
+  `info.version` `2026.8.31`, OpenAPI 3.0.3, MIT-0) instead of the archived
+  `kintone/rest-api-spec` (Apache-2.0). The vendored copy moved to
+  `third_party/openapi-spec/openapi.yaml`, and both `THIRD_PARTY_NOTICES.md`
+  and the `x-kintone-cli-provenance` stamp in `dist/spec.json` record the new
+  origin, tag, and license.
+- **Breaking:** DELETE commands (`records delete`, `record comment delete`,
+  `preview app form-fields delete`, `space delete`, `plugin delete`,
+  `guests delete`, and the cursor cleanup behind `records get --page-all`)
+  now send their parameters as a JSON request body instead of a query
+  string. The new specification defines these parameters in `requestBody`,
+  and the official documentation shows the same form. The `--dry-run` output
+  of these commands therefore has a `body` key where it previously had
+  `params`. `records delete --json` is validated against that `requestBody`
+  like every other write command.
+- **Breaking:** `space guests update` now requires `--guest-space-id` and
+  fails before any request when it is omitted. The API exists only under the
+  guest-space path (`/k/guest/{guestSpaceId}/v1/space/guests.json`); without
+  the flag the CLI used to call a path that does not exist. Its `--schema`
+  output now returns that guest-space path definition regardless of
+  `--guest-space-id` (the one exception to "`--schema` returns the non-guest
+  path").
+- Invalid numeric input now fails before any request instead of being sent
+  as-is or silently converted: `--guest-space-id` must be a positive
+  integer (a non-numeric value or `0` used to leave the path unrewritten),
+  and integer-valued flags that are sent in a JSON body (`--app`, `--record`,
+  `--comment`, `--id` of `space delete`, `--revision`) must be integers
+  (`Number()` used to turn `abc` into `null` and an empty value into `0`).
+
 ## [0.7.3] - 2026-06-27
 
 ### Changed
@@ -179,7 +213,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   comment APIs, and the `bulk-request` / `plugin` / `space` / `guests` /
   `statistics` commands. See git history for per-commit detail.
 
-[Unreleased]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/yoshkosh/kintone-cli/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.3...v0.8.0
 [0.7.3]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/yoshkosh/kintone-cli/compare/v0.7.0...v0.7.1

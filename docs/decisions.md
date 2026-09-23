@@ -248,6 +248,8 @@
 - `--describe`: 出力が「コマンドのパラメータ要約」なら適切な名前だが、実際に出すのは spec の operation そのものなので `--schema` の方が誤解が少ない。
 - 動的引数なし `kt --schema`: 第一弾は対象スコープが曖昧（全エンドポイント？ ヘルプ？）なので保留。
 
+→ **2026-09-23 例外**: `space guests update` は通常パスの定義が仕様に存在しないため、ゲストスペース用パスの定義を返す。下記 ADR 参照。
+
 **参考**: `reports/schema-option-plan.md` v2、`reports/plan-review-cc.md`
 
 ---
@@ -394,3 +396,42 @@
 **影響**: 全 `--json` callsite が `async helper` 経由になる（既存 action は全て async なので影響なし）。`JSON.parse` の戻り値型 `any` が `parseJsonOption` の `Promise<unknown>` に降格するため、直接プロパティアクセスしている callsite では型ガード / cast が必要になる。本対応の置換着手前に grep 確認した結果、`records.ts` の DELETE callsite（`params` に渡す箇所）のみ `Record<string, unknown>` cast が必要だった。他 29 箇所は validator / dryRunOutput / kintoneRequest に値を渡すだけのため影響なし。
 
 **参考**: `prompts/json-with-path/plan.md`
+
+---
+
+## 2026-09-23 OpenAPI Spec の提供元を kintone/openapi-spec に移行
+
+**決定**: 同梱する OpenAPI Spec を `kintone/rest-api-spec`（Apache-2.0、アーカイブ予定）から `kintone/openapi-spec` のタグ `v1`（`info.version` は `2026.8.31`、OpenAPI 3.0.3、MIT-0）に差し替える。同梱ディレクトリは `third_party/openapi-spec/` に改名し、`main` には追従せずタグに固定する。新仕様では DELETE のパラメータが `parameters`（query）から `requestBody` に移ったため、DELETE 系 7 エンドポイント（`records delete`、`record comment delete`、`preview app form-fields delete`、`space delete`、`plugin delete`、`guests delete`、`records get --page-all` のカーソル削除）はパラメータを JSON ボディで送信する。`records delete --json` の検証は他の書き込み系と同じ requestBody で行い、`--dry-run` の出力キーは `params` から `body` に変わる。
+
+**理由**: 旧リポジトリはアーカイブされ、今後の API の追加や誤りの修正が反映されない。新リポジトリは毎日再生成され、変更があるとタグが作成されるため、`main` に追従すると差分の確認が頻繁になる。DELETE の送信方法は、新仕様と公式ドキュメントの curl の例がいずれも JSON ボディで示している。送信内容と仕様書の記述を一致させると、query 用の検証層が実行時に不要になる。
+
+**実装**:
+
+- `scripts/build-spec.mjs` の出所とライセンスの定数を `kintone/openapi-spec` と `MIT-0` に更新し、`THIRD_PARTY_NOTICES.md` にタグ名、コミット、`info.version` を記録する。`src/spec.test.ts` で `x-kintone-cli-provenance` の値を検査し、定数の更新漏れを検出する。
+- `src/validator.ts` から query モード（`ValidationMode`、`buildQuerySchema`）を削除し、`compileForEndpoint(method, path)` と `validateJsonOrThrow(cmd, opts, body)` は requestBody だけを扱う。GET の query 検証はテストヘルパー `src/__test-helpers__/spec-validator.ts` が独自の Ajv インスタンスで行う（2026-05-02 の「GET query 検証は test-helper 側に保持」の方針を維持）。
+- フラグから組み立てる DELETE のボディでは、spec が integer と定義する値（`app`、`record`、`comment`、`revision`、スペースの `id`）を `src/commands/shared.ts` の `toInteger` で整数に変換する。整数でない値は API 呼び出し前に `--<name> must be an integer` で失敗させる（`Number()` は `abc` を `null`、空文字を `0` に黙って変換するため使わない）。カーソル作成の POST ボディの `app` も同じヘルパーに揃える。
+- `.gitleaksignore` は旧仕様向けの除外指定を削除し、新仕様で検出されるサンプル値の除外指定に置き換える。
+
+**不採用案**:
+
+- query のまま送信し、requestBody の定義を query の検証に流用する: 送信内容と仕様書の記述がずれたままになり、両者を対応づける層が残る。URL の長さの制限も受ける。
+- `main` への追従: 差分の確認が頻繁になる。上流の README もタグへの固定を勧めている。
+- 実行時コードに query モードを残す: 実行時の利用箇所がなくなり、2026-05-02 の方針（GET query 検証は test-helper 側）とも合わない。
+
+**互換性**: DELETE 系 6 コマンドの `--dry-run` 出力の `params` キーは `body` キーになる。公式ドキュメントは DELETE のパラメータを query とボディのどちらでも受け付けると記載しており、公式 SDK（`@kintone/rest-api-client`）は query で送信している。仕様書と SDK の実装は一致していない。
+
+**実環境での確認**: 2026-09-23 に検証環境で、レコード、コメント、カーソル、プレビューのフィールドの削除が JSON ボディで成功し、削除後の取得で対象が存在しないことを確認した。スペース、プラグイン、ゲストユーザーの削除は使い捨てのリソースを用意していないため未確認で、公式ドキュメントの記載を根拠とする。
+
+**参考**: `reports/openapi-spec-migration-survey.html`、`prompts/openapi-spec-migration/plan.md`
+
+---
+
+## 2026-09-23 `space guests update`: `--guest-space-id` 必須と `--schema` の例外
+
+**決定**: `space guests update` は `--guest-space-id` を必須とし、指定がなければ API 呼び出し前に `--guest-space-id is required for "space guests update"` を返す（`src/commands/shared.ts` の `requireGuestSpace`。`noGuestSpace` と逆の役割）。`toGuestSpaceId` は正の整数以外（`abc`、`0`）を `--guest-space-id must be a positive integer` で失敗させる。従来は `NaN` や `0` になって `buildPath` がパスを書き換えず、ガードを通過しても通常パスを呼んでいた。endpoint メタのパスは `/k/guest/{guestSpaceId}/v1/space/guests.json` とし、`--json` の検証と `--schema` の出力はこのパスの定義を参照する。`--schema` は `--guest-space-id` と認証情報の有無に関わらずこの定義を返し、副作用ゼロ（必須検証とガードのバイパス）は維持する。`--dry-run` の出力パスは他のコマンドと同じく書き換え前の `/k/v1/space/guests.json` とする。
+
+**理由**: 新仕様には `/k/v1/space/guests.json` がなく、ゲストスペース用のパスだけが定義されている。公式ドキュメントもゲストスペース専用の API として記載している。従来は指定なしで存在しないパスを呼び出して API エラーになっており、CLI 側で事前に検出する方が予測可能性が高い（2026-03-26 の noGuestSpace と同じ考え方）。
+
+**2026-05-02「`--schema` オプション」の例外**: 「`--guest-space-id` を併用しても通常パスの schema を返す」という決定は、通常パスの定義が仕様に存在するコマンドを前提にしていた。`space guests update` は通常パスの定義が存在しないため、ゲストスペース用パスの定義を返す。この例外は本コマンドに限る。
+
+**参考**: `reports/openapi-spec-migration-survey.html`、`prompts/openapi-spec-migration/plan.md`
