@@ -71,16 +71,19 @@ Reasons for the unconditional rule:
 
 The following environment variables must be available at runtime. They are managed by the user's environment and are NOT the agent's responsibility.
 
-| Variable                                | Required | Description                                   |
-| --------------------------------------- | -------- | --------------------------------------------- |
-| `KINTONE_BASE_URL`                      | Always   | e.g. `https://example.cybozu.com`             |
-| `KINTONE_API_TOKEN`                     | Pick one | Per-app token (comma-separated for cross-app) |
-| `KINTONE_USERNAME` + `KINTONE_PASSWORD` | Pick one | Password auth                                 |
+| Variable                                                                                  | Required | Description                                   |
+| ----------------------------------------------------------------------------------------- | -------- | --------------------------------------------- |
+| `KINTONE_BASE_URL`                                                                        | Always   | e.g. `https://example.cybozu.com`             |
+| `KINTONE_API_TOKEN`                                                                       | Pick one | Per-app token (comma-separated for cross-app) |
+| `KINTONE_OAUTH_CLIENT_ID` + `KINTONE_OAUTH_CLIENT_SECRET` + `KINTONE_OAUTH_REFRESH_TOKEN` | Pick one | OAuth client (refresh token grant)            |
+| `KINTONE_USERNAME` + `KINTONE_PASSWORD`                                                   | Pick one | Password auth                                 |
 
 > [!CAUTION]
 > Do NOT set, export, echo, or inspect these variables. They are already provided by the environment. Execute commands without commenting on authentication — if a command fails with an auth error, ask the user to check their environment configuration.
 
-If multiple auth methods are detected, a warning is shown. Use `--auth-type` to specify explicitly.
+If multiple auth methods are detected, a warning is shown and the first one in the table above (api-token → oauth → password) is used. Use `--auth-type` to specify explicitly.
+
+Under OAuth, kintone itself rejects the cursor API (`records get --page-all`), `bulk-request add`, `app admin-notes` / `app plugins` (live and preview), and the password-only administration commands (`space`, `guests`, `plugin`, `plugins`, statistics, `app move`, `records acl-evaluate`). If one of these fails with an auth error under OAuth, ask the user to provide another auth method rather than retrying.
 
 ## Global Flags
 
@@ -338,6 +341,7 @@ kt records get --schema | jq '."operation"."parameters"[] | select(."in" == "que
 
 - Use `--fields` on `records get` to limit response size
 - For bulk data, use `--page-all` and pipe through `jq` — do NOT load all records into context
+  - `--page-all` uses the cursor API, which kintone does not offer under OAuth. With OAuth, page with `--query 'order by $id asc limit 500'` and repeat with `$id > <last id>` instead
 - `--json` accepts the kintone API request body as-is — refer to [kintone REST API docs](https://kintone.dev/en/docs/kintone/rest-api/)
 - Command structure follows kintone API paths for predictability
 - System-level commands (`plugin`, `plugins`, `bulk-request`, `guests`, statistics) do not support `--guest-space-id`

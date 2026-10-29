@@ -125,13 +125,18 @@ npx skills add https://github.com/yoshkosh/kintone-cli -g -a claude-code -y
 | Method    | Required environment variables                                                                              |
 | --------- | ----------------------------------------------------------------------------------------------------------- |
 | API token | `KINTONE_BASE_URL`, `KINTONE_API_TOKEN`                                                                     |
-| Password  | `KINTONE_BASE_URL`, `KINTONE_USERNAME`, `KINTONE_PASSWORD`                                                  |
 | OAuth     | `KINTONE_BASE_URL`, `KINTONE_OAUTH_CLIENT_ID`, `KINTONE_OAUTH_CLIENT_SECRET`, `KINTONE_OAUTH_REFRESH_TOKEN` |
-
-> OAuth is not yet implemented (see "Limitations" below). For now, use API token or password authentication.
+| Password  | `KINTONE_BASE_URL`, `KINTONE_USERNAME`, `KINTONE_PASSWORD`                                                  |
 
 - The table is ordered by priority. When credentials for multiple methods are present, `kt` prints a warning and uses the first method whose credentials it can resolve, top to bottom
-- Pass `--auth-type api-token|password|oauth` to make the choice explicit
+- Pass `--auth-type api-token|oauth|password` to make the choice explicit
+
+OAuth works for accounts with two-factor authentication enabled (kintone rejects password authentication for them) and is not bound by the limit of 9 API tokens per request. `kt` exchanges the refresh token for an access token at `${KINTONE_BASE_URL}/oauth2/token` on every run. cybozu.com refresh tokens do not expire, so the setup is a one-time task:
+
+1. Register an OAuth client and grant it the scopes you need — see [How to Add OAuth Clients](https://kintone.dev/en/docs/common/authentication/how-to-add-oauth-clients/) and [OAuth Permission Scopes](https://kintone.dev/en/docs/common/authentication/oauth-permission-scope/)
+2. Run the authorization code flow described on that page once, and store the returned `refresh_token` in `KINTONE_OAUTH_REFRESH_TOKEN`
+
+kintone itself does not accept OAuth for the cursor API (`records get --page-all`), `bulk-request add`, app admin notes / app plugins, or the password-only administration APIs (`space`, `guests`, `plugin`, statistics, `app move`, `records acl-evaluate`). Those commands return kintone's own error under OAuth; use another method for them.
 
 Smoke test (API token):
 
@@ -223,7 +228,6 @@ Step 1 changes only the preview environment; step 2 promotes the changes to prod
 
 ## Limitations
 
-- **OAuth authentication** — not yet implemented (planned). For now, only API token and password authentication are available
 - **Response sanitization** — not yet implemented (planned). Until `--sanitize` ships, treat kintone record values passed to an agent as untrusted input that may contain prompt injection
 - **Input hardening** — schema-level checks (typos, required fields, types) are in place. String-level hardening (file paths, control characters, URL encoding) is partially implemented (full coverage planned). See [`SECURITY.md`](SECURITY.md) for details
 

@@ -435,3 +435,42 @@
 **2026-05-02「`--schema` オプション」の例外**: 「`--guest-space-id` を併用しても通常パスの schema を返す」という決定は、通常パスの定義が仕様に存在するコマンドを前提にしていた。`space guests update` は通常パスの定義が存在しないため、ゲストスペース用パスの定義を返す。この例外は本コマンドに限る。
 
 **参考**: `reports/openapi-spec-migration-survey.html`、`prompts/openapi-spec-migration/plan.md`
+
+---
+
+## 2026-10-29 OAuth 認証: refresh token grant のみ、アクセストークンはキャッシュしない
+
+**決定**: `KINTONE_OAUTH_CLIENT_ID` / `KINTONE_OAUTH_CLIENT_SECRET` / `KINTONE_OAUTH_REFRESH_TOKEN` の 3 変数が揃っているとき、`${KINTONE_BASE_URL}/oauth2/token` に `grant_type=refresh_token` を POST（`Authorization: Basic base64(clientId:clientSecret)`、`application/x-www-form-urlencoded`）してアクセストークンを取得し、REST API には `Authorization: Bearer <access_token>` で送る。対話型の認可コード取得（`kt auth login` 等）やローカルへのトークン保存は持たず、初回の refresh token 取得は公式ドキュメントの手順に委ねる。アクセストークンはプロセス内でもキャッシュせず、実行のたびに交換する。トークンエンドポイントは HTTPS 以外を送信前に拒否し、`fetch` は `redirect: "manual"` で 3xx に追従しない。交換の失敗は `KintoneAPIError` ではなく通常の `Error`（`OAuth token exchange failed (HTTP <status>): <error> (<error_description>)`）として投げ、エラー本文のうち RFC 6749 §5.2 の `error` / `error_description` 以外は出力しない。3 変数が一部だけ設定されている場合は、`--auth-type oauth` 指定時と他に方式が無いときは不足変数名を含めてエラー、他方式へ自動で落ちるときは警告を出す。複数方式の優先順位は実装どおり `api-token` → `oauth` → `password` とし、README / `docs/spec.md` の記載をこれに揃える。
+
+**理由**:
+
+- 2 要素認証を有効にしたアカウントではパスワード認証が拒否され、API トークンは 1 リクエストに 9 個までのため、多アプリを横断する運用には OAuth が要る（cybozu.dev「kintone REST API の認証」、2026-10-29 確認）。
+- cybozu.com の refresh token には有効期限がなく、`grant_type=refresh_token` の応答に新しい refresh token は含まれない（ローテーションなし）。一度取得して環境変数に置けば恒久運用でき、2026-03-11「認証: 環境変数 + フラグ、設定ファイル不要」と 2026-03-24「direnv + Keychain」の枠に収まる（cybozu.dev「OAuth クライアントの使用」、2026-10-29 確認）。
+- `kt` は 1 プロセスで REST API を 1 回しか呼ばない。唯一の複数リクエスト経路であるカーソル API（`records get --page-all`）は kintone 側が OAuth を受け付けないため、アクセストークンをキャッシュしても効く場面が無い。ディスクへの書き出しは平文 Bearer トークンの漏えい面を増やすだけで、設定ファイル不要の原則にも反する。
+- RFC 6749 §3.2 はトークンエンドポイントに TLS を要求する。`redirect: "follow"` のままだと 307/308 で refresh token を含む POST がリダイレクト先へ再送されうる。Node の `fetch` は `manual` で 3xx 応答をそのまま返す（ブラウザの opaque response とは異なる）ので、非 2xx として扱える。
+- トークンエンドポイントのエラーは `{"error": ..., "error_description": ...}` でトップレベルに `error` キーを持つ。これを `KintoneAPIError` として透過すると、2026-05-02「`--json` ペイロードのバリデーション」が定めた「`error` キーの有無で CLI エラーと API エラーを弁別する」契約が壊れる。
+- 1 変数だけの typo で黙ってパスワード認証に落ちると、原因と無関係な 2 要素認証のエラーで失敗して原因が追えない。
+- 優先順位は最小権限の順（アプリ単位の API トークン → スコープ付きの OAuth → ユーザー全権限のパスワード）になっており、実装側を正とする。
+
+**実装**:
+
+- `src/auth.ts`: `buildAuthHeaders({ auth, baseUrl })` を `async` 化し、`oauth` 分岐で `fetchOAuthAccessToken` を呼ぶ。`resolveAuth` に部分設定の検知を追加。
+- `src/client.ts` と `src/commands/file/file.ts` の 3 箇所で `await` する。`file add` は `readFileSync` をトークン交換より前に動かし、ローカルファイルが無いときにネットワークへ出ないようにする。
+- テストヘルパー `createValidatedPool`（`src/cli.test.ts`）は `/oauth2/token` を OpenAPI Spec の検証対象から外す（kintone の仕様外の cybozu.com 共通エンドポイントのため）。
+
+**OAuth で使えないコマンド（kintone 側の仕様）**: 同梱の OpenAPI Spec で `security` に `oauth2` を含まない操作は 66 件（ゲストスペース用パスを含む。2026-10-29 に `src/spec.json` から集計）。CLI 側では事前に拒否せず kintone のエラーを透過する（2026-03-11「エラー出力: APIレスポンス透過」と同じ扱い。API トークン認証でも `apps get` 等の非対応 API を事前拒否していない）。対象: `records get --page-all`（カーソル API）、`bulk-request add`、`app admin-notes get` / `preview app admin-notes get|update`、`app plugins get` / `preview app plugins get|add`、パスワード認証専用の `app move add`、`records acl-evaluate get`、`space *`、`spaces statistics get`、`template space add`、`guests *`、`plugin *`、`plugins *`、`apps statistics get`。逆に `apps get`、`preview app add`、`app customize get`、`preview app customize get|update` は API トークンでは呼べず OAuth では呼べる。
+
+**不採用案**:
+
+- アクセストークンのプロセス内キャッシュと並列呼び出しの重複排除: 上記のとおり現行の呼び出し経路では一度も効かない。複数リクエストを OAuth で行う経路（例: `--page-all` のキーセットページングによる代替）が入った時点で検討する。
+- ディスクキャッシュと 401 時の自動再取得: 漏えい面が増え、スコープ不足による恒常的な 401/403 で無駄な再取得を招く。
+- `kt auth login` などの対話型フロー: ブラウザリダイレクトを使わない原則（README「設計原則」）に反する。
+- OAuth 非対応コマンドの CLI 側での事前ブロック: 認証方式間の対称性を崩し、kintone 側が対応範囲を広げたときに追従が要る。
+- エラー本文全体の出力（秘密情報のマスク付き）: マスクの網羅性に依存する。`error` / `error_description` だけを出せばマスク自体が不要になる。
+- OAuth 時に `--page-all` をキーセットページングへ自動で切り替える: 別の設計判断を伴うため、別 issue で扱う。
+
+**互換性**: `dist/auth.js` の `buildAuthHeaders` は同期関数から `async` になり、引数が `auth` 単体から `{ auth, baseUrl }` に変わる。`package.json` に `exports` は無く公開 API とは位置づけていないが、`dist/` を直接 import していたコードには破壊的変更になる。
+
+**実環境での確認**: 2026-10-30 に本番テナントで確認（2 要素認証を有効にしたアカウント、cybozu.com 共通管理で登録した OAuth クライアント、スコープ `k:app_record:read k:app_settings:read k:file:read k:file:write`）。`apps get`（API トークンでは呼べないエンドポイント）が 100 件を返し、`records get --fields '$id'` が 3 件を返し、`file add` が fileKey を返し、既存の添付ファイルに対する `file get --output` が 1,156,537 バイトを exit 0 で保存した。`KINTONE_OAUTH_REFRESH_TOKEN` を無効な値にすると stderr に `Error: OAuth token exchange failed (HTTP 400): invalid_grant (The refresh_token is not found.)` だけが出て exit 1 になり、秘密情報は出なかった。`--auth-type` を付けない自動検出も警告なしで動いた。補足: cybozu.com の OAuth クライアントのリダイレクトエンドポイントは https が必須。`file add` が返す fileKey はレコードへの添付用で、`file get` には添付済みファイルの fileKey を渡す（前者を渡すと kintone が `GAIA_BL01` を返す。認証とは無関係）。
+
+**参考**: cybozu.dev「OAuth クライアントの使用」<https://cybozu.dev/ja/common/docs/oauth-client/add-client/>、「kintone の OAuth スコープ」<https://cybozu.dev/ja/common/docs/oauth-client/scope-kintone/>、RFC 6749 §3.2 / §5.2

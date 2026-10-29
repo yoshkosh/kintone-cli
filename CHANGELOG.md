@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- OAuth client authentication (`--auth-type oauth`, or auto-detected from
+  `KINTONE_OAUTH_CLIENT_ID` / `KINTONE_OAUTH_CLIENT_SECRET` /
+  `KINTONE_OAUTH_REFRESH_TOKEN`). `kt` exchanges the refresh token for an
+  access token at `${KINTONE_BASE_URL}/oauth2/token` on every run and sends
+  `Authorization: Bearer ...`. The token endpoint must be HTTPS, redirects
+  from it are not followed, and a failed exchange reports only the RFC 6749
+  `error` / `error_description` fields as a text error (exit 1). This works
+  for accounts with two-factor authentication enabled; kintone itself does
+  not accept OAuth for the cursor API (`records get --page-all`),
+  `bulk-request add`, app admin notes / app plugins, or the password-only
+  administration APIs.
+- A partial OAuth configuration (one or two of the three variables) now
+  names the missing variables: an error for `--auth-type oauth` or when no
+  other method is configured, a warning when another method is used instead.
+
+### Changed
+
+- README and `docs/spec.md` list the authentication methods in the order
+  the CLI resolves them: API token → OAuth → password (the code has not
+  changed; the documentation had it in a different order).
+- Internal: `buildAuthHeaders` (`dist/auth.js`) is now `async` and takes
+  `{ auth, baseUrl }`. There is no `exports` field, so this is not public
+  API, but code importing `dist/` directly needs to adapt.
+
 ## [0.8.0] - 2026-09-23
 
 ### Changed

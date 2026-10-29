@@ -21,7 +21,7 @@ export const registerFileCommands = (program: Command): void => {
       const gSpaceId = toGuestSpaceId(global);
       const baseUrl = getBaseUrl();
       const auth = resolveAuth(global.authType);
-      const headers = buildAuthHeaders(auth);
+      const headers = await buildAuthHeaders({ auth, baseUrl });
       const fullPath = buildPath("/k/v1/file.json", gSpaceId);
       const url = new URL(fullPath, baseUrl);
       url.searchParams.set("fileKey", opts.fileKey);
@@ -60,12 +60,14 @@ export const registerFileCommands = (program: Command): void => {
       const gSpaceId = toGuestSpaceId(global);
       const baseUrl = getBaseUrl();
       const auth = resolveAuth(global.authType);
-      const headers = buildAuthHeaders(auth);
       const fullPath = buildPath("/k/v1/file.json", gSpaceId);
       const url = new URL(fullPath, baseUrl);
 
+      // NOTE: Read the local file before buildAuthHeaders so a missing file fails
+      // without triggering an OAuth token exchange request.
       const fileContent = readFileSync(opts.file);
       const fileName = basename(opts.file);
+      const headers = await buildAuthHeaders({ auth, baseUrl });
       const blob = new Blob([fileContent]);
       const formData = new FormData();
       formData.append("file", blob, fileName);

@@ -20,7 +20,10 @@ const createValidatedPool = (agent: MockAgent, origin: string): MockPool => {
   const pool = agent.get(origin);
   const orig = pool.intercept.bind(pool);
   pool.intercept = ((match: Parameters<MockPool["intercept"]>[0]) => {
-    assertRequestMatchesSpec(match as Parameters<typeof assertRequestMatchesSpec>[0]);
+    // NOTE: /oauth2/token is a cybozu.com endpoint outside the kintone OpenAPI Spec.
+    if (match.path !== "/oauth2/token") {
+      assertRequestMatchesSpec(match as Parameters<typeof assertRequestMatchesSpec>[0]);
+    }
     return orig(match);
   }) as MockPool["intercept"];
   return pool;
@@ -742,29 +745,158 @@ describe("cli integration", () => {
       expect(warnings).toContain("Multiple auth methods detected");
     });
 
-    it("--auth-type oauth → exit 1 with 'not yet implemented' message", async () => {
-      // OAuth env vars present so resolveAuth finds the method,
-      // but buildAuthHeaders throws because OAuth is unimplemented.
-      vi.stubEnv("KINTONE_OAUTH_CLIENT_ID", "CHANGEME");
-      vi.stubEnv("KINTONE_OAUTH_CLIENT_SECRET", "CHANGEME");
-      vi.stubEnv("KINTONE_OAUTH_REFRESH_TOKEN", "CHANGEME");
+    describe("oauth", () => {
+      const OAUTH_BASIC = `Basic ${Buffer.from("CHANGEME:CHANGEME").toString("base64")}`;
+      const TOKEN_REQUEST = {
+        path: "/oauth2/token",
+        method: "POST",
+        headers: {
+          Authorization: OAUTH_BASIC,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: "grant_type=refresh_token&refresh_token=CHANGEME",
+      } as const;
+      const BEARER_HEADER = { Authorization: "Bearer test-access-token" };
+      const TOKEN_RESPONSE = { access_token: "test-access-token", token_type: "bearer" };
 
-      const code = await main([
-        "node",
-        "kt",
-        "--auth-type",
-        "oauth",
-        "record",
-        "get",
-        "--app",
-        "1",
-        "--id",
-        "1",
-      ]);
+      beforeEach(() => {
+        vi.stubEnv("KINTONE_OAUTH_CLIENT_ID", "CHANGEME");
+        vi.stubEnv("KINTONE_OAUTH_CLIENT_SECRET", "CHANGEME");
+        vi.stubEnv("KINTONE_OAUTH_REFRESH_TOKEN", "CHANGEME");
+      });
 
-      expect(code).toBe(1);
-      expect(readStdout()).toBe("");
-      expect(readStderr()).toContain("OAuth is not yet implemented");
+      it("exchanges the refresh token, then calls the API with a Bearer header", async () => {
+        const pool = createValidatedPool(mockAgent, BASE_URL);
+        pool.intercept(TOKEN_REQUEST).reply(200, TOKEN_RESPONSE);
+        pool
+          .intercept({
+            path: "/k/v1/record.json",
+            method: "GET",
+            query: { app: "1", id: "1" },
+            headers: BEARER_HEADER,
+          })
+          .reply(200, GET_FIXTURE);
+
+        const code = await main(["node", "kt", "record", "get", "--app", "1", "--id", "1"]);
+
+        expect(readStderr()).toBe("");
+        expect(code).toBe(0);
+        expect(readStdout()).toBe(GET_EXPECTED_STDOUT);
+        mockAgent.assertNoPendingInterceptors();
+      });
+
+      it("--guest-space-id rewrites the API path but not the token endpoint", async () => {
+        const pool = createValidatedPool(mockAgent, BASE_URL);
+        pool.intercept(TOKEN_REQUEST).reply(200, TOKEN_RESPONSE);
+        pool
+          .intercept({
+            path: "/k/guest/5/v1/record.json",
+            method: "GET",
+            query: { app: "1", id: "1" },
+            headers: BEARER_HEADER,
+          })
+          .reply(200, GET_FIXTURE);
+
+        const code = await main([
+          "node",
+          "kt",
+          "--guest-space-id",
+          "5",
+          "record",
+          "get",
+          "--app",
+          "1",
+          "--id",
+          "1",
+        ]);
+
+        expect(code).toBe(0);
+        mockAgent.assertNoPendingInterceptors();
+      });
+
+      it("file add / file get (fetch outside kintoneRequest) send the Bearer header", async () => {
+        const tmpDir = await mkdtemp(join(tmpdir(), "kt-oauth-file-"));
+        try {
+          const filePath = join(tmpDir, "upload.txt");
+          await writeFile(filePath, "hello");
+          const pool = createValidatedPool(mockAgent, BASE_URL);
+          pool.intercept(TOKEN_REQUEST).reply(200, TOKEN_RESPONSE);
+          // NOTE: no body matcher — the spec defines POST /k/v1/file.json as multipart/form-data,
+          // which the JSON-only spec validator cannot check.
+          pool
+            .intercept({ path: "/k/v1/file.json", method: "POST", headers: BEARER_HEADER })
+            .reply(200, { fileKey: "key-1" });
+
+          expect(await main(["node", "kt", "file", "add", "--file", filePath])).toBe(0);
+          expect(readStdout()).toContain('"fileKey": "key-1"');
+
+          pool.intercept(TOKEN_REQUEST).reply(200, TOKEN_RESPONSE);
+          pool
+            .intercept({
+              path: "/k/v1/file.json",
+              method: "GET",
+              query: { fileKey: "key-1" },
+              headers: BEARER_HEADER,
+            })
+            .reply(200, "hello");
+
+          expect(await main(["node", "kt", "file", "get", "--file-key", "key-1"])).toBe(0);
+          expect(readStdout()).toContain("hello");
+          expect(readStderr()).toBe("");
+          mockAgent.assertNoPendingInterceptors();
+        } finally {
+          await rm(tmpDir, { recursive: true, force: true });
+        }
+      });
+
+      it("file add with a missing --file fails before the token exchange", async () => {
+        // No interceptors: a token request would surface as a MockAgent network error.
+        const code = await main([
+          "node",
+          "kt",
+          "file",
+          "add",
+          "--file",
+          join(tmpdir(), "kt-oauth-missing-file.txt"),
+        ]);
+
+        expect(code).toBe(1);
+        expect(readStderr()).toContain("ENOENT");
+        expect(readStderr()).not.toContain("OAuth");
+      });
+
+      it("--dry-run does not contact the token endpoint", async () => {
+        // No interceptors: a token request would surface as a MockAgent network error.
+        const code = await main([
+          "node",
+          "kt",
+          "record",
+          "add",
+          "--json",
+          '{"app":1,"record":{}}',
+          "--dry-run",
+        ]);
+
+        expect(readStderr()).toBe("");
+        expect(code).toBe(0);
+        expect(readStdout()).toContain('"dryRun": true');
+      });
+
+      it("token exchange failure → exit 1 with a text error (not KintoneAPIError JSON)", async () => {
+        const pool = createValidatedPool(mockAgent, BASE_URL);
+        pool.intercept(TOKEN_REQUEST).reply(400, {
+          error: "invalid_grant",
+          error_description: "The refresh token is invalid.",
+        });
+
+        const code = await main(["node", "kt", "record", "get", "--app", "1", "--id", "1"]);
+
+        expect(code).toBe(1);
+        expect(readStdout()).toBe("");
+        expect(readStderr()).toBe(
+          "Error: OAuth token exchange failed (HTTP 400): invalid_grant (The refresh token is invalid.)\n",
+        );
+      });
     });
   });
 
