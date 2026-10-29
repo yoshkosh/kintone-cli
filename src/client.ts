@@ -41,7 +41,7 @@ export const kintoneRequest = async <T = unknown>(options: RequestOptions): Prom
   const baseUrl = getBaseUrl();
   const auth = resolveAuth(options.authType);
   const headers: Record<string, string> = {
-    ...buildAuthHeaders(auth),
+    ...(await buildAuthHeaders({ auth, baseUrl })),
   };
 
   const fullPath = buildPath(options.path, options.guestSpaceId);

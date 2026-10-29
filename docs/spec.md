@@ -112,9 +112,11 @@ kt record get --app 1 --id 10
 
 ### 対応方式
 
-1. パスワード認証
-2. APIトークン認証
-3. OAuthクライアント認証
+優先順位順（複数の方式が設定されているときは上から順に採用する）:
+
+1. APIトークン認証
+2. OAuthクライアント認証（refresh token grant）
+3. パスワード認証
 
 ### 指定方法
 
@@ -145,8 +147,18 @@ KINTONE_OAUTH_REFRESH_TOKEN=xxxxx
 
 ```bash
 $ kt record get --app 1
-Warning: Multiple auth methods detected. Using API token. Use --auth-type to specify.
+Warning: Multiple auth methods detected. Using api-token. Use --auth-type to specify.
 ```
+
+OAuth の 3 変数が一部だけ設定されている場合は不足している変数名を出す。`--auth-type oauth` 指定時と他に使える方式が無いときはエラー、他方式へ自動で落ちるときは `Warning: Incomplete OAuth configuration (missing ...); ignoring OAuth.` を stderr に出す。
+
+### OAuth のトークン交換
+
+`${KINTONE_BASE_URL}/oauth2/token` に `grant_type=refresh_token&refresh_token=...`（`Authorization: Basic base64(clientId:clientSecret)`、`application/x-www-form-urlencoded`）を POST し、応答の `access_token` を `Authorization: Bearer <access_token>` として REST API に送る。交換は実行のたびに行い、アクセストークンは保存もキャッシュもしない（`kt` は 1 プロセスで 1 リクエストしか発行しない）。
+
+- `KINTONE_BASE_URL` が HTTPS でなければ送信前にエラー。トークンエンドポイントの 3xx には追従しない
+- 交換の失敗は CLI 側エラー（テキスト）として `Error: OAuth token exchange failed (HTTP <status>): <error> (<error_description>)` を出し exit 1。エラー本文は RFC 6749 §5.2 の `error` / `error_description` 以外を出力しない
+- OAuth 非対応の API（カーソル、bulkRequest、管理系）は CLI 側で事前に拒否せず、kintone のエラーをそのまま透過する
 
 ## エラー出力
 

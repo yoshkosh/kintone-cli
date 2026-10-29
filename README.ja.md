@@ -125,13 +125,18 @@ npx skills add https://github.com/yoshkosh/kintone-cli -g -a claude-code -y
 | 方式         | 必要な環境変数                                                                                              |
 | ------------ | ----------------------------------------------------------------------------------------------------------- |
 | API トークン | `KINTONE_BASE_URL`, `KINTONE_API_TOKEN`                                                                     |
-| パスワード   | `KINTONE_BASE_URL`, `KINTONE_USERNAME`, `KINTONE_PASSWORD`                                                  |
 | OAuth        | `KINTONE_BASE_URL`, `KINTONE_OAUTH_CLIENT_ID`, `KINTONE_OAUTH_CLIENT_SECRET`, `KINTONE_OAUTH_REFRESH_TOKEN` |
-
-> OAuth 認証は未実装です（後述「制約事項」を参照）。当面は API トークンまたはパスワード認証を推奨します。
+| パスワード   | `KINTONE_BASE_URL`, `KINTONE_USERNAME`, `KINTONE_PASSWORD`                                                  |
 
 - 表は優先順位順に記載。複数の方式の認証情報がセットされている場合、警告を表示した上で、上から順に最初に取得できた認証情報を使用
-- `--auth-type api-token|password|oauth` で認証方式を明示することも可能
+- `--auth-type api-token|oauth|password` で認証方式を明示することも可能
+
+OAuth は 2 要素認証を有効にしたアカウント（kintone がパスワード認証を拒否する）でも使え、API トークンの「1 リクエストに 9 個まで」の制限も受けません。`kt` は実行のたびに `${KINTONE_BASE_URL}/oauth2/token` でリフレッシュトークンをアクセストークンに交換します。cybozu.com のリフレッシュトークンには有効期限がないため、準備は初回の 1 度だけです。
+
+1. OAuth クライアントを登録し、必要なスコープを付与する — [OAuthクライアントの使用](https://cybozu.dev/ja/common/docs/oauth-client/add-client/)・[kintoneのOAuthスコープ](https://cybozu.dev/ja/common/docs/oauth-client/scope-kintone/)
+2. 同ページの手順で認可コードフローを一度だけ実行し、返ってきた `refresh_token` を `KINTONE_OAUTH_REFRESH_TOKEN` に設定する
+
+kintone 側の仕様により、カーソル API（`records get --page-all`）、`bulk-request add`、アプリの管理者用メモ / アプリのプラグイン、パスワード認証専用の管理系 API（`space`・`guests`・`plugin`・統計・`app move`・`records acl-evaluate`）は OAuth では使えません。OAuth のまま実行すると kintone のエラーがそのまま返るので、これらには別の認証方式を使ってください。
 
 疎通確認の例（API トークン認証）:
 
@@ -223,7 +228,6 @@ kt preview app deploy add --json '{"apps":[{"app":42}]}'
 
 ## 制約事項
 
-- **OAuth 認証** — 未実装（実装予定）。当面は API トークンまたはパスワード認証のみ利用可能
 - **応答サニタイズ** — 未実装（実装予定）。`--sanitize` 実装までの間、エージェントへ渡すコンテキストにおいては、kintone のレコード値をプロンプトインジェクションを含みうる「信頼できない入力」として扱うこと
 - **入力ハードニング** — typo・必須項目・型などスキーマレベルの検査は実装済み。ファイルパス・制御文字・URL エンコーディングなど文字列レベルのハードニングは部分実装（実装予定）。詳細は [`SECURITY.md`](SECURITY.md) を参照
 

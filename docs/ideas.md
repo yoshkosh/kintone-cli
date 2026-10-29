@@ -34,14 +34,6 @@ post-release backlog。エージェントが進捗に応じて section 間で項
 
 DoD: `package.json` の `engines.node` を `">=20"` に変更、README (英/日) の Prerequisite を "Node.js 20 or newer" に更新、CI matrix に `20.x` を追加。
 
-### OAuth 認証
-
-<!-- meta: auth / README-promise -->
-
-未実装。当面は API トークン / パスワード認証のみ利用可能。kintone OAuth は token endpoint と refresh token のフローまで含めて整理が必要。
-
-DoD: `--auth-type oauth` で OAuth クライアント認証フローが実行可能、refresh token 自動更新、README「制約事項」から該当行を削除。
-
 ### 応答サニタイズ (`--sanitize`)
 
 <!-- meta: security / README-promise -->
